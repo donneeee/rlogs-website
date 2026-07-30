@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { validateWebsitePayload } from "./website-payload";
@@ -72,5 +73,28 @@ describe("website payload contract", () => {
     expect(result.envelope).toBeUndefined();
     expect(result.errors[0]).toContain("schema_version must be 1");
   });
-});
 
+  it("accepts the sanitized MarieRose capture with the complete module inventory", () => {
+    const source = readFileSync(
+      new URL(
+        "../../public/fixtures/marierose-asteria-capture.v1.json",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const profile = JSON.parse(source) as {
+      body: {
+        modules: {
+          equipped_slots: Record<string, string>;
+          inventory: unknown[];
+        };
+      };
+    };
+
+    const result = validateWebsitePayload(profile);
+
+    expect(result.errors).toEqual([]);
+    expect(profile.body.modules.inventory).toHaveLength(649);
+    expect(Object.keys(profile.body.modules.equipped_slots)).toHaveLength(5);
+  });
+});

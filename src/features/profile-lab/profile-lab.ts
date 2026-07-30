@@ -4,7 +4,8 @@ import {
   validateWebsitePayload,
 } from "../../contracts/website-payload";
 
-const fixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-character-profile.v1.json`;
+const demoFixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-character-profile.v1.json`;
+const captureFixtureUrl = `${import.meta.env.BASE_URL}fixtures/marierose-asteria-capture.v1.json`;
 
 export async function mountProfileLab(): Promise<void> {
   const editor = requiredElement<HTMLTextAreaElement>("profile-json");
@@ -14,7 +15,10 @@ export async function mountProfileLab(): Promise<void> {
     validateAndRender(editor.value);
   });
   requiredElement("load-profile-fixture").addEventListener("click", () => {
-    void loadFixture();
+    void loadFixture(demoFixtureUrl);
+  });
+  requiredElement("load-capture-fixture").addEventListener("click", () => {
+    void loadFixture(captureFixtureUrl);
   });
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
@@ -25,13 +29,16 @@ export async function mountProfileLab(): Promise<void> {
     });
   });
 
-  await loadFixture();
+  const requestedProfile = new URLSearchParams(window.location.search).get("profile");
+  await loadFixture(
+    requestedProfile === "marierose" ? captureFixtureUrl : demoFixtureUrl,
+  );
 }
 
-async function loadFixture(): Promise<void> {
+async function loadFixture(url: string): Promise<void> {
   setStatus("neutral", "Loading fixture…");
   try {
-    const response = await fetch(fixtureUrl);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Fixture request failed with HTTP ${response.status}.`);
     }
@@ -228,4 +235,3 @@ function initials(name: string): string {
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
 }
-
