@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "engine": "rlogs-bpsr-module-optimizer",
+  "compatibility_source": "resonance-logs-cn 0.2.0",
+  "native_smoke_test": {
+    "passed": true,
+    "catalog_attribute_count": 21,
+    "safe_demo_module_count": 12,
+    "returned_solution_count": 10,
+    "exact_result": true
+  },
+  "browser_adapter": {
+    "state": "not_attached",
+    "next_step": "Expose the existing Rust request and response types through a small WebAssembly wrapper."
+  }
+}
+

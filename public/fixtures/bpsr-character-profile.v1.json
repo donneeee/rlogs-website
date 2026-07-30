@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "game_plugin_id": "app.rlogs.game.blue-protocol-star-resonance",
+  "payload_kind": "character-profile",
+  "payload_schema_id": "app.rlogs.bpsr.character-profile",
+  "payload_schema_version": 1,
+  "routing": {
+    "deployment": "global",
+    "region": "north-america",
+    "realm": "asteria",
+    "character-id": "public-demo-character-001"
+  },
+  "body": {
+    "character": {
+      "region": {
+        "deployment_id": "global",
+        "region_id": "north-america",
+        "realm_id": "asteria",
+        "world_id": null
+      },
+      "character_id": "public-demo-character-001"
+    },
+    "display_name": "Example Adventurer",
+    "display_id": "0000000000",
+    "server_id": "asteria",
+    "class_id": 3,
+    "specialization_id": 2,
+    "level": 60,
+    "progression": {
+      "current_experience": 125000,
+      "previous_season_max_level": 60
+    },
+    "combat_power": 42850,
+    "combat_power_breakdown": null,
+    "season_strength": 9120,
+    "season": {
+      "season_id": 2,
+      "level": 18,
+      "experience": 4200,
+      "power": 9120,
+      "strength": 9120
+    },
+    "appearance": {
+      "gender_id": 1,
+      "body_size_id": 2,
+      "height": 1.0,
+      "voice_id": 4,
+      "face_options": {},
+      "color_options": {},
+      "avatar_id": 101,
+      "business_card_style_id": 12,
+      "avatar_frame_id": 7,
+      "unlocked_profile_image_ids": [101, 105],
+      "unlocked_face_item_ids": [],
+      "unlocked_voice_ids": [4]
+    },
+    "equipment": [
+      {
+        "slot_id": 1,
+        "item_id": 5100101,
+        "instance_id": "9007199254740993",
+        "level": 60,
+        "quality": 5,
+        "refinement_level": 8,
+        "refinement_failed_count": 0,
+        "attributes": null,
+        "enchantment_ids": [],
+        "enchantments": [],
+        "set_id": 51001
+      }
+    ],
+    "modules": {
+      "equipped_slots": {
+        "1": "9007199254740995"
+      },
+      "inventory": [
+        {
+          "instance_id": "9007199254740995",
+          "config_id": 5500101,
+          "count": 1,
+          "quality": 5,
+          "load_flag": 1,
+          "module_type": 2,
+          "level": 4,
+          "parts": [
+            {
+              "part_id": 1110,
+              "initial_link_points": 7
+            },
+            {
+              "part_id": 1111,
+              "initial_link_points": 5
+            }
+          ],
+          "upgrade_records": [],
+          "success_rate": 75
+        }
+      ]
+    },
+    "owned_imagines": [
+      {
+        "imagine_id": 200101,
+        "level": 60,
+        "breakthrough_level": 2,
+        "equipped_slot": 1
+      }
+    ],
+    "battle_imagine_skills": [],
+    "active_skills": [
+      {
+        "skill_id": 301001,
+        "base_skill_id": 301000,
+        "level": 12,
+        "remodel_level": 2,
+        "skin_id": null,
+        "replacement_skill_ids": [],
+        "unlocked_skin_ids": []
+      }
+    ],
+    "talents": [
+      {
+        "talent_id": 31001,
+        "level": 3
+      }
+    ],
+    "talent_progress": {
+      "total_points": 10,
+      "total_reset_count": 1
+    },
+    "combat_professions": [],
+    "life_professions": [],
+    "cosmetics": [],
+    "collection_summary": null,
+    "activity_progress": null,
+    "season_medals": null,
+    "season_cultivation": null,
+    "reputations": [],
+    "current_profession_project_id": null,
+    "social_display": null
+  }
+}
+

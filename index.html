@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Public web testbed for versioned rLogs profiles, reports, and tools."
+    />
+    <meta name="color-scheme" content="dark" />
+    <title>rLogs Web Lab</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <header class="site-header">
+      <a class="brand" href="#overview" aria-label="rLogs Web Lab home">
+        <span class="brand-mark" aria-hidden="true">r/</span>
+        <span>
+          <strong>rLogs</strong>
+          <small>web lab</small>
+        </span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="#overview">Overview</a>
+        <a href="#profile-lab">Profile Lab</a>
+        <a href="#optimizer">Optimizer</a>
+      </nav>
+      <span class="build-chip">contract v1</span>
+    </header>
+
+    <main id="main-content">
+      <section id="overview" class="hero content-section">
+        <div class="hero-copy">
+          <p class="eyebrow">Public integration sandbox</p>
+          <h1>Test what rLogs can publish before the real backend exists.</h1>
+          <p class="hero-text">
+            This site consumes versioned, privacy-reviewed payloads from rLogs.
+            It is static by design today, so no captures, credentials, or
+            account data are uploaded or stored.
+          </p>
+          <div class="button-row">
+            <a class="button primary" href="#profile-lab">Open Profile Lab</a>
+            <a class="button secondary" href="#optimizer">View engine status</a>
+          </div>
+        </div>
+
+        <aside class="release-card" aria-label="Current integration state">
+          <p class="eyebrow">Milestone 0.1</p>
+          <ol class="milestone-list">
+            <li class="complete">
+              <span>01</span>
+              <div><strong>Profile contract</strong><small>Import and validation</small></div>
+            </li>
+            <li class="complete">
+              <span>02</span>
+              <div><strong>Static deployment</strong><small>GitHub Pages-ready</small></div>
+            </li>
+            <li class="active">
+              <span>03</span>
+              <div><strong>Optimizer bridge</strong><small>Native passed; WASM next</small></div>
+            </li>
+            <li>
+              <span>04</span>
+              <div><strong>Authenticated API</strong><small>Future hosting</small></div>
+            </li>
+          </ol>
+        </aside>
+      </section>
+
+      <section class="content-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Clear boundaries</p>
+            <h2>One public contract, separate responsibilities</h2>
+          </div>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <span class="feature-number">01</span>
+            <h3>Parser</h3>
+            <p>Captures, decodes, sanitizes, and creates versioned envelopes.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">02</span>
+            <h3>Website</h3>
+            <p>Validates public envelopes and renders profiles, logs, and tools.</p>
+          </article>
+          <article class="feature-card">
+            <span class="feature-number">03</span>
+            <h3>Future API</h3>
+            <p>Owns authentication, persistence, verification, and leaderboards.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="profile-lab" class="content-section lab-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Live browser validation</p>
+            <h2>Character Profile Lab</h2>
+          </div>
+          <span id="profile-status" class="status-chip neutral" role="status">
+            Loading fixture…
+          </span>
+        </div>
+
+        <div class="lab-grid">
+          <article class="panel editor-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Website payload envelope</h3>
+                <p>Paste a sanitized envelope or choose a local JSON file.</p>
+              </div>
+            </div>
+            <textarea
+              id="profile-json"
+              class="json-editor"
+              aria-label="Character profile JSON"
+              spellcheck="false"
+            ></textarea>
+            <div class="editor-actions">
+              <button id="validate-profile" class="button primary" type="button">
+                Validate and render
+              </button>
+              <button id="load-profile-fixture" class="button secondary" type="button">
+                Reset demo
+              </button>
+              <label class="button secondary file-button">
+                Open JSON
+                <input id="profile-file" type="file" accept=".json,application/json" />
+              </label>
+            </div>
+            <ul id="profile-errors" class="error-list" aria-live="polite"></ul>
+          </article>
+
+          <article class="panel preview-panel">
+            <div class="panel-heading">
+              <div>
+                <h3>Public profile preview</h3>
+                <p>Unknown optional fields remain visible in the raw inspector.</p>
+              </div>
+            </div>
+            <div id="profile-preview" class="profile-preview">
+              <p class="empty-state">A valid character profile will appear here.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="optimizer" class="content-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Portable engine</p>
+            <h2>Module optimizer bridge</h2>
+          </div>
+          <span id="optimizer-status-chip" class="status-chip neutral">Checking receipt…</span>
+        </div>
+        <div class="optimizer-grid">
+          <article class="panel optimizer-summary">
+            <div id="optimizer-receipt" class="optimizer-receipt">
+              <p class="empty-state">Loading the native smoke-test receipt.</p>
+            </div>
+          </article>
+          <article class="panel bridge-panel">
+            <p class="eyebrow">Why it is not duplicated here</p>
+            <h3>One optimizer engine, two runtimes</h3>
+            <p>
+              The current optimizer is a tested Rust crate. GitHub Pages cannot
+              execute the native binary, so the next bridge packages that same
+              crate as WebAssembly. The browser UI will use its existing
+              request/response contract without maintaining a second scoring
+              implementation.
+            </p>
+            <div class="contract-flow" aria-label="Optimizer deployment path">
+              <span>Rust crate</span>
+              <span aria-hidden="true">→</span>
+              <span>WASM adapter</span>
+              <span aria-hidden="true">→</span>
+              <span>Browser</span>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>rLogs Web Lab · Static, versioned, and privacy-reviewed by default.</p>
+      <p>No packet capture or account authentication runs in this site.</p>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+
