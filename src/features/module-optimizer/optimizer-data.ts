@@ -8,6 +8,49 @@ export interface OptimizerProfileInput {
   currentInstanceIds: string[];
 }
 
+export interface OptimizerDeviceCapabilities {
+  hardwareConcurrency?: number;
+  deviceMemoryGb?: number;
+  mobile?: boolean;
+}
+
+export interface OptimizerComputeBudget {
+  beamWidth: 128 | 256 | 512 | 1024 | 2048;
+  label:
+    | "constrained"
+    | "mobile"
+    | "balanced"
+    | "thorough"
+    | "workstation";
+}
+
+export function optimizerComputeBudget(
+  capabilities: OptimizerDeviceCapabilities,
+): OptimizerComputeBudget {
+  const cores = positiveNumber(capabilities.hardwareConcurrency) ?? 4;
+  const memoryGb = positiveNumber(capabilities.deviceMemoryGb);
+
+  if (cores <= 2 || (memoryGb != null && memoryGb <= 2)) {
+    return { beamWidth: 128, label: "constrained" };
+  }
+  if (cores <= 4 || (memoryGb != null && memoryGb <= 4)) {
+    return {
+      beamWidth: 256,
+      label: capabilities.mobile ? "mobile" : "constrained",
+    };
+  }
+  if (capabilities.mobile) {
+    return { beamWidth: 512, label: "mobile" };
+  }
+  if (cores >= 12 && memoryGb != null && memoryGb >= 16) {
+    return { beamWidth: 2048, label: "workstation" };
+  }
+  if (cores >= 8 && (memoryGb == null || memoryGb >= 8)) {
+    return { beamWidth: 1024, label: "thorough" };
+  }
+  return { beamWidth: 512, label: "balanced" };
+}
+
 export function extractOptimizerModules(value: unknown): ModuleCandidate[] {
   return extractOptimizerInput(value).modules;
 }
@@ -187,6 +230,12 @@ function integer(value: unknown, label: string): number {
     throw new Error(`${label} must be a safe integer.`);
   }
   return value;
+}
+
+function positiveNumber(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

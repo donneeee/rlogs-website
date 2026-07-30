@@ -2,6 +2,7 @@ import {
   combinationCount,
   DEFAULT_EXACT_COMBINATION_LIMIT,
   extractOptimizerInput,
+  optimizerComputeBudget,
   safeDemoModules,
 } from "./optimizer-data";
 import type {
@@ -18,6 +19,7 @@ import type {
 
 const captureFixtureUrl =
   `${import.meta.env.BASE_URL}fixtures/marierose-asteria-capture.v1.json`;
+const computeBudget = optimizerComputeBudget(browserDeviceCapabilities());
 
 let inventory: ModuleCandidate[] = [];
 let currentInstanceIds: string[] = [];
@@ -201,8 +203,9 @@ async function runOptimizer(): Promise<void> {
   setRunStatus(
     fellBackFromExact
       ? `Exact search would require ${formatBigInt(exactEstimate.combinations)} sets; ` +
-          "using bounded search automatically."
-      : `Searching ${formatNumber(inventory.length)} modules in the background...`,
+          `using ${computeBudget.label} bounded search automatically.`
+      : `Searching ${formatNumber(inventory.length)} modules in a background worker ` +
+        `with the ${computeBudget.label} device budget (${formatNumber(computeBudget.beamWidth)} beam states)...`,
   );
   const started = performance.now();
   try {
@@ -255,6 +258,7 @@ function buildRequest(): OptimizeRequest {
     search_mode: requiredElement<HTMLSelectElement>(
       "optimizer-search-mode",
     ).value as SearchMode,
+    beam_width: computeBudget.beamWidth,
     minimum_module_total:
       minimumTotalRaw === "" ? null : Number(minimumTotalRaw),
     require_target_match:
@@ -316,7 +320,7 @@ function renderResult(result: OptimizeResponse, durationMs: number): void {
     currentIsComparable && current && top ? top.score - current.score : undefined;
   const metrics: Array<[string, string]> = [
     [current ? formatNumber(current.score) : "—", "current actual"],
-    [top ? formatNumber(top.score) : "—", "best found actual"],
+    [top ? formatNumber(top.score) : "—", "top recommendation"],
     [actualDelta == null ? "—" : formatSigned(actualDelta), "actual change"],
     [top ? formatNumber(top.ranking_score) : "—", "preference score"],
     [formatNumber(result.search.candidate_module_count), "candidates"],
@@ -482,6 +486,24 @@ function callWorker(
     pendingWorkerCalls.set(id, { resolve, reject });
     optimizerWorker.postMessage({ ...message, id } as OptimizerWorkerRequest);
   });
+}
+
+function browserDeviceCapabilities(): {
+  hardwareConcurrency?: number;
+  deviceMemoryGb?: number;
+  mobile: boolean;
+} {
+  const extendedNavigator = navigator as Navigator & {
+    deviceMemory?: number;
+    userAgentData?: { mobile?: boolean };
+  };
+  return {
+    hardwareConcurrency: navigator.hardwareConcurrency,
+    deviceMemoryGb: extendedNavigator.deviceMemory,
+    mobile:
+      extendedNavigator.userAgentData?.mobile ??
+      /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent),
+  };
 }
 
 function enableRun(): void {

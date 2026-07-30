@@ -40,6 +40,7 @@ export interface OptimizeRequest {
   combination_size: number;
   max_solutions: number;
   search_mode: SearchMode;
+  beam_width: number;
   minimum_module_total: number | null;
   require_target_match: boolean;
 }

@@ -6,6 +6,7 @@ import {
   DEFAULT_EXACT_COMBINATION_LIMIT,
   extractOptimizerInput,
   extractOptimizerModules,
+  optimizerComputeBudget,
   safeDemoModules,
 } from "./optimizer-data";
 
@@ -52,6 +53,39 @@ describe("optimizer module input", () => {
     expect(combinationCount(12, 4)).toBeLessThan(
       DEFAULT_EXACT_COMBINATION_LIMIT,
     );
+  });
+
+  it("chooses conservative device-aware beam budgets", () => {
+    expect(
+      optimizerComputeBudget({
+        hardwareConcurrency: 2,
+        deviceMemoryGb: 2,
+        mobile: true,
+      }),
+    ).toEqual({ beamWidth: 128, label: "constrained" });
+    expect(
+      optimizerComputeBudget({
+        hardwareConcurrency: 8,
+        deviceMemoryGb: 8,
+        mobile: true,
+      }),
+    ).toEqual({ beamWidth: 512, label: "mobile" });
+    expect(
+      optimizerComputeBudget({
+        hardwareConcurrency: 8,
+        deviceMemoryGb: 8,
+      }),
+    ).toEqual({ beamWidth: 1024, label: "thorough" });
+    expect(
+      optimizerComputeBudget({
+        hardwareConcurrency: 16,
+        deviceMemoryGb: 16,
+      }),
+    ).toEqual({ beamWidth: 2048, label: "workstation" });
+    expect(optimizerComputeBudget({})).toEqual({
+      beamWidth: 256,
+      label: "constrained",
+    });
   });
 
   it("rejects numeric instance IDs instead of accepting precision loss", () => {
