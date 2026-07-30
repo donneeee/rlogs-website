@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 
-export default defineConfig(({ command }) => ({
+export default defineConfig(({ command, mode }) => ({
   base:
-    command === "serve"
+    command === "serve" && mode === "development"
       ? "/"
       : (process.env.RLOGS_SITE_BASE ?? "/rlogs-website/"),
   build: {
@@ -10,4 +10,3 @@ export default defineConfig(({ command }) => ({
     sourcemap: true,
   },
 }));
-

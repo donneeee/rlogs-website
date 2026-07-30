@@ -10,8 +10,7 @@
     "exact_result": true
   },
   "browser_adapter": {
-    "state": "not_attached",
-    "next_step": "Expose the existing Rust request and response types through a small WebAssembly wrapper."
+    "state": "attached",
+    "next_step": "The Rust optimizer runs in a WebAssembly worker with the exact-build catalog."
   }
 }
-

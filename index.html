@@ -41,7 +41,7 @@
           </p>
           <div class="button-row">
             <a class="button primary" href="#profile-lab">Open Profile Lab</a>
-            <a class="button secondary" href="#optimizer">View engine status</a>
+            <a class="button secondary" href="#optimizer">Open module optimizer</a>
           </div>
         </div>
 
@@ -56,9 +56,9 @@
               <span>02</span>
               <div><strong>Static deployment</strong><small>GitHub Pages-ready</small></div>
             </li>
-            <li class="active">
+            <li class="complete">
               <span>03</span>
-              <div><strong>Optimizer bridge</strong><small>Native passed; WASM next</small></div>
+              <div><strong>Optimizer bridge</strong><small>Rust engine live in browser</small></div>
             </li>
             <li>
               <span>04</span>
@@ -154,36 +154,133 @@
       <section id="optimizer" class="content-section">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Portable engine</p>
-            <h2>Module optimizer bridge</h2>
+            <p class="eyebrow">Runs locally in your browser</p>
+            <h2>Module optimizer</h2>
           </div>
-          <span id="optimizer-status-chip" class="status-chip neutral">Checking receipt…</span>
+          <span id="optimizer-status-chip" class="status-chip neutral" role="status">
+            Loading Rust engine...
+          </span>
         </div>
-        <div class="optimizer-grid">
-          <article class="panel optimizer-summary">
-            <div id="optimizer-receipt" class="optimizer-receipt">
-              <p class="empty-state">Loading the native smoke-test receipt.</p>
+
+        <article class="panel optimizer-workbench">
+          <div class="optimizer-notice">
+            <strong>Your module inventory stays on this device.</strong>
+            The optimizer runs as WebAssembly in a background worker. It does not
+            upload modules, profile data, captures, credentials, or account data.
+          </div>
+
+          <div class="optimizer-source-bar">
+            <div class="button-row">
+              <button id="optimizer-load-capture" class="button primary" type="button">
+                Load MarieRose modules
+              </button>
+              <button id="optimizer-load-demo" class="button secondary" type="button">
+                Load safe demo
+              </button>
+              <label class="button secondary file-button">
+                Open profile JSON
+                <input
+                  id="optimizer-file"
+                  type="file"
+                  accept=".json,application/json"
+                />
+              </label>
             </div>
-          </article>
-          <article class="panel bridge-panel">
-            <p class="eyebrow">Why it is not duplicated here</p>
-            <h3>One optimizer engine, two runtimes</h3>
-            <p>
-              The current optimizer is a tested Rust crate. GitHub Pages cannot
-              execute the native binary, so the next bridge packages that same
-              crate as WebAssembly. The browser UI will use its existing
-              request/response contract without maintaining a second scoring
-              implementation.
+            <p id="optimizer-inventory-status" class="muted" role="status">
+              Waiting for the optimizer engine.
             </p>
-            <div class="contract-flow" aria-label="Optimizer deployment path">
-              <span>Rust crate</span>
-              <span aria-hidden="true">→</span>
-              <span>WASM adapter</span>
-              <span aria-hidden="true">→</span>
-              <span>Browser</span>
+          </div>
+
+          <div class="optimizer-layout">
+            <div class="optimizer-settings-column">
+              <div class="optimizer-settings">
+                <label class="optimizer-field">
+                  <span>Modules to equip</span>
+                  <select id="optimizer-combination-size">
+                    <option value="4">4 modules</option>
+                    <option value="5">5 modules</option>
+                  </select>
+                </label>
+                <label class="optimizer-field">
+                  <span>Results</span>
+                  <input id="optimizer-result-count" type="number" min="1" max="60" value="10" />
+                </label>
+                <label class="optimizer-field">
+                  <span>Search</span>
+                  <select id="optimizer-search-mode">
+                    <option value="auto">Auto</option>
+                    <option value="beam">Bounded beam</option>
+                    <option value="exact">Exact verification</option>
+                  </select>
+                </label>
+                <label class="optimizer-field">
+                  <span>Minimum module total</span>
+                  <input id="optimizer-min-total" type="number" min="0" placeholder="none" />
+                </label>
+              </div>
+
+              <label class="optimizer-check">
+                <input id="optimizer-require-target" type="checkbox" />
+                Only consider modules containing a target attribute
+              </label>
+
+              <div class="optimizer-run-bar">
+                <button id="run-optimizer" class="button primary" type="button" disabled>
+                  Optimize modules
+                </button>
+                <span id="optimizer-run-status" class="muted" role="status">
+                  Load an inventory to begin.
+                </span>
+              </div>
+
+              <div class="optimizer-engine-note">
+                <span>Rust crate</span>
+                <span aria-hidden="true">&rarr;</span>
+                <span>WebAssembly worker</span>
+                <span aria-hidden="true">&rarr;</span>
+                <span>Browser results</span>
+              </div>
             </div>
-          </article>
-        </div>
+
+            <div class="optimizer-attribute-column">
+              <div class="optimizer-attribute-heading">
+                <div>
+                  <strong>Attribute policy</strong>
+                  <small>Target doubles threshold power; exclude removes it.</small>
+                </div>
+                <span id="optimizer-catalog-revision" class="optimizer-revision">
+                  Loading catalog...
+                </span>
+              </div>
+              <div class="optimizer-attribute-labels" aria-hidden="true">
+                <span>Attribute</span>
+                <span>Scoring</span>
+                <span>Minimum</span>
+              </div>
+              <div id="optimizer-attributes" class="optimizer-attributes">
+                <p class="empty-state">Loading exact-build attributes.</p>
+              </div>
+            </div>
+          </div>
+
+          <div id="optimizer-result" class="optimizer-result" hidden>
+            <div id="optimizer-metrics" class="optimizer-result-metrics"></div>
+            <div class="optimizer-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Score</th>
+                    <th>Module instance IDs</th>
+                    <th>Attribute totals</th>
+                  </tr>
+                </thead>
+                <tbody id="optimizer-result-rows"></tbody>
+              </table>
+            </div>
+            <p id="optimizer-footnote" class="optimizer-footnote"></p>
+          </div>
+        </article>
       </section>
     </main>
 
