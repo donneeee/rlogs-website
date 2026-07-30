@@ -9,6 +9,8 @@ The first release is intentionally a static site:
 - it validates the version-1 `WebsitePayloadEnvelope` emitted by rLogs;
 - it imports and renders sanitized Blue Protocol: Star Resonance character
   profiles;
+- it discovers hashed, developer-published profile packages without requiring
+  an upload API or account authentication;
 - it records the native module-optimizer smoke result without duplicating the
   Rust optimizer in TypeScript;
 - it is deployable to GitHub Pages and contains no secrets, database, packet
@@ -34,6 +36,7 @@ npm run build
 ```text
 public/
   fixtures/                    sanitized payloads and test receipts
+  profiles/                    indexed developer-published profile packages
 src/
   contracts/                   versioned parser-to-website boundaries
   features/
@@ -59,18 +62,49 @@ secrets or pretend to persist profiles. A later backend will own:
 The frontend will address that backend through a configurable API adapter, so
 moving away from GitHub Pages will not require rewriting page features.
 
+## Developer profile publishing
+
+Until the authenticated API exists, repository write access is the developer
+authorization boundary. Publish an already-sanitized, user-approved profile
+envelope with:
+
+```powershell
+npm run profile:publish -- --input C:\path\profile.json --slug marierose --confirm-public
+npm test
+npm run check
+npm run build
+git add public/profiles
+git commit -m "data: publish updated marierose profile"
+git push
+```
+
+The publisher reruns the prohibited-field and size checks, creates a
+deterministic SHA-256 manifest entry, and refuses to write without
+`--confirm-public`. It does not read packet captures or bypass the public
+profile allowlist. A normal push deploys the package through GitHub Pages; do
+not force-push.
+
+Each package is available at
+`https://donneeee.github.io/rlogs-website/?profile=<slug>`. The browser
+validates the index, byte length, digest, envelope, and manifest routing before
+rendering it. These packages are visibly developer-published test data, not
+authenticated character claims.
+
+Use `--dry-run` instead of `--confirm-public` to validate without writing.
+
 ## Optimizer path
 
 The canonical optimizer remains the
-`rlogs-bpsr-module-optimizer` Rust crate in RLogs. The next website milestone is
-a small WebAssembly wrapper around its current request/response types. This
-keeps native and browser scoring behavior in one implementation.
+`rlogs-bpsr-module-optimizer` Rust crate in RLogs. The browser imports that
+implementation through its WebAssembly wrapper, keeping native and browser
+scoring behavior in one implementation.
 
 ## Privacy
 
 The browser validator mirrors Core's prohibited-field boundary for passwords,
 account/login containers, credentials, tokens, cookies, email/phone fields, and
-private platform identity. Fixtures are synthetic.
+private platform identity. The example fixture is synthetic. Developer profile
+packages are sanitized, user-authorized public envelopes.
 
 ## License
 

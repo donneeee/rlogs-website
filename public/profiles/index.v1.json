@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "publication_mode": "developer-git",
+  "profiles": [
+    {
+      "slug": "marierose",
+      "label": "MarieRose",
+      "game_plugin_id": "app.rlogs.game.blue-protocol-star-resonance",
+      "payload_schema_id": "app.rlogs.bpsr.character-profile",
+      "payload_schema_version": 1,
+      "deployment": "global",
+      "region": "unknown",
+      "realm": "asteria",
+      "character_id": "3296036",
+      "payload_path": "marierose/profile.v1.json",
+      "payload_sha256": "e9c0d4bab6686db14263e4e3e60d1dc4179b71f857512c656e8177e79876329f",
+      "payload_bytes": 1470481
+    }
+  ]
+}

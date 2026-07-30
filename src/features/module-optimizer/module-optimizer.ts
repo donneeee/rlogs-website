@@ -16,9 +16,9 @@ import type {
   OptimizeResponse,
   SearchMode,
 } from "./optimizer-types";
+import { loadPublishedProfile } from "../profile-lab/published-profile-loader";
 
-const captureFixtureUrl =
-  `${import.meta.env.BASE_URL}fixtures/marierose-asteria-capture.v1.json`;
+const defaultPublishedProfile = "marierose";
 const computeBudget = optimizerComputeBudget(browserDeviceCapabilities());
 
 let inventory: ModuleCandidate[] = [];
@@ -65,8 +65,9 @@ export async function mountModuleOptimizer(): Promise<void> {
     catalog = (await callWorker({ kind: "catalog" })) as OptimizerCatalog;
     renderCatalog(catalog);
     setEngineState("valid", "Rust + WASM ready");
-    if (new URLSearchParams(location.search).get("profile") === "marierose") {
-      await loadCaptureInventory();
+    const requestedProfile = new URLSearchParams(location.search).get("profile");
+    if (requestedProfile) {
+      await loadPublishedInventory(requestedProfile);
     } else {
       loadDemoInventory();
     }
@@ -80,7 +81,7 @@ export async function mountModuleOptimizer(): Promise<void> {
 function bindControls(): void {
   requiredElement<HTMLButtonElement>("optimizer-load-capture").addEventListener(
     "click",
-    () => void loadCaptureInventory(),
+    () => void loadPublishedInventory(defaultPublishedProfile),
   );
   requiredElement<HTMLButtonElement>("optimizer-load-demo").addEventListener(
     "click",
@@ -112,27 +113,24 @@ function bindControls(): void {
   );
 }
 
-async function loadCaptureInventory(): Promise<void> {
-  setInventoryStatus("Loading the sanitized MarieRose module inventory...");
+async function loadPublishedInventory(slug: string): Promise<void> {
+  setInventoryStatus(`Loading the published "${slug}" module inventory...`);
   try {
-    const response = await fetch(captureFixtureUrl);
-    if (!response.ok) {
-      throw new Error(`Profile fixture failed with HTTP ${response.status}.`);
-    }
-    const input = extractOptimizerInput(await response.json());
+    const published = await loadPublishedProfile(slug);
+    const input = extractOptimizerInput(published.envelope);
     inventory = input.modules;
     currentInstanceIds = input.currentInstanceIds;
     setCombinationSizeForCurrentSetup();
     updateExactSearchAvailability();
     setInventoryStatus(
-      `MarieRose capture loaded: ${formatNumber(inventory.length)} modules and ` +
+      `${published.entry.label} loaded: ${formatNumber(inventory.length)} modules and ` +
         `${currentInstanceIds.length} equipped modules.`,
     );
     setRunStatus("Choose attribute priorities, then optimize.");
     enableRun();
   } catch (error) {
     setInventoryStatus(errorMessage(error), true);
-    setRunStatus("Could not load the MarieRose inventory.", true);
+    setRunStatus(`Could not load the "${slug}" inventory.`, true);
   }
 }
 

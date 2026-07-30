@@ -3,9 +3,10 @@ import {
   type WebsitePayloadEnvelope,
   validateWebsitePayload,
 } from "../../contracts/website-payload";
+import { loadPublishedProfile } from "./published-profile-loader";
 
 const demoFixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-character-profile.v1.json`;
-const captureFixtureUrl = `${import.meta.env.BASE_URL}fixtures/marierose-asteria-capture.v1.json`;
+const defaultPublishedProfile = "marierose";
 
 export async function mountProfileLab(): Promise<void> {
   const editor = requiredElement<HTMLTextAreaElement>("profile-json");
@@ -17,8 +18,8 @@ export async function mountProfileLab(): Promise<void> {
   requiredElement("load-profile-fixture").addEventListener("click", () => {
     void loadFixture(demoFixtureUrl);
   });
-  requiredElement("load-capture-fixture").addEventListener("click", () => {
-    void loadFixture(captureFixtureUrl);
+  requiredElement("load-published-profile").addEventListener("click", () => {
+    void loadPublished(defaultPublishedProfile);
   });
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
@@ -30,9 +31,11 @@ export async function mountProfileLab(): Promise<void> {
   });
 
   const requestedProfile = new URLSearchParams(window.location.search).get("profile");
-  await loadFixture(
-    requestedProfile === "marierose" ? captureFixtureUrl : demoFixtureUrl,
-  );
+  if (requestedProfile) {
+    await loadPublished(requestedProfile);
+  } else {
+    await loadFixture(demoFixtureUrl);
+  }
 }
 
 async function loadFixture(url: string): Promise<void> {
@@ -49,6 +52,23 @@ async function loadFixture(url: string): Promise<void> {
   } catch (error) {
     showErrors([error instanceof Error ? error.message : "Could not load fixture."]);
     setStatus("invalid", "Fixture failed");
+  }
+}
+
+async function loadPublished(slug: string): Promise<void> {
+  setStatus("neutral", "Loading published profile…");
+  try {
+    const published = await loadPublishedProfile(slug);
+    const formatted = JSON.stringify(published.envelope, null, 2);
+    requiredElement<HTMLTextAreaElement>("profile-json").value = formatted;
+    validateAndRender(formatted);
+    setStatus("valid", "Developer-published package");
+  } catch (error) {
+    showErrors([
+      error instanceof Error ? error.message : "Could not load published profile.",
+    ]);
+    clearPreview();
+    setStatus("invalid", "Published profile failed");
   }
 }
 

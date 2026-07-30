@@ -77,7 +77,7 @@ describe("website payload contract", () => {
   it("accepts the sanitized MarieRose capture with the complete module inventory", () => {
     const source = readFileSync(
       new URL(
-        "../../public/fixtures/marierose-asteria-capture.v1.json",
+        "../../public/profiles/marierose/profile.v1.json",
         import.meta.url,
       ),
       "utf8",

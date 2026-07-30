@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "check": "tsc -b --pretty false",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "profile:publish": "node scripts/publish-profile.ts"
   },
   "devDependencies": {
     "@emnapi/core": "2.0.0-alpha.3",
