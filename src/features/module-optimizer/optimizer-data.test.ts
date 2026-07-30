@@ -62,28 +62,28 @@ describe("optimizer module input", () => {
         deviceMemoryGb: 2,
         mobile: true,
       }),
-    ).toEqual({ beamWidth: 128, label: "constrained" });
+    ).toEqual({ beamWidth: 64, label: "constrained" });
     expect(
       optimizerComputeBudget({
         hardwareConcurrency: 8,
         deviceMemoryGb: 8,
         mobile: true,
       }),
-    ).toEqual({ beamWidth: 512, label: "mobile" });
+    ).toEqual({ beamWidth: 128, label: "mobile" });
     expect(
       optimizerComputeBudget({
         hardwareConcurrency: 8,
         deviceMemoryGb: 8,
       }),
-    ).toEqual({ beamWidth: 1024, label: "thorough" });
+    ).toEqual({ beamWidth: 512, label: "thorough" });
     expect(
       optimizerComputeBudget({
         hardwareConcurrency: 16,
         deviceMemoryGb: 16,
       }),
-    ).toEqual({ beamWidth: 2048, label: "workstation" });
+    ).toEqual({ beamWidth: 512, label: "workstation" });
     expect(optimizerComputeBudget({})).toEqual({
-      beamWidth: 256,
+      beamWidth: 128,
       label: "constrained",
     });
   });

@@ -15,7 +15,7 @@ export interface OptimizerDeviceCapabilities {
 }
 
 export interface OptimizerComputeBudget {
-  beamWidth: 128 | 256 | 512 | 1024 | 2048;
+  beamWidth: 64 | 128 | 256 | 512;
   label:
     | "constrained"
     | "mobile"
@@ -31,24 +31,24 @@ export function optimizerComputeBudget(
   const memoryGb = positiveNumber(capabilities.deviceMemoryGb);
 
   if (cores <= 2 || (memoryGb != null && memoryGb <= 2)) {
-    return { beamWidth: 128, label: "constrained" };
+    return { beamWidth: 64, label: "constrained" };
   }
   if (cores <= 4 || (memoryGb != null && memoryGb <= 4)) {
     return {
-      beamWidth: 256,
+      beamWidth: 128,
       label: capabilities.mobile ? "mobile" : "constrained",
     };
   }
   if (capabilities.mobile) {
-    return { beamWidth: 512, label: "mobile" };
+    return { beamWidth: 128, label: "mobile" };
   }
   if (cores >= 12 && memoryGb != null && memoryGb >= 16) {
-    return { beamWidth: 2048, label: "workstation" };
+    return { beamWidth: 512, label: "workstation" };
   }
   if (cores >= 8 && (memoryGb == null || memoryGb >= 8)) {
-    return { beamWidth: 1024, label: "thorough" };
+    return { beamWidth: 512, label: "thorough" };
   }
-  return { beamWidth: 512, label: "balanced" };
+  return { beamWidth: 256, label: "balanced" };
 }
 
 export function extractOptimizerModules(value: unknown): ModuleCandidate[] {
