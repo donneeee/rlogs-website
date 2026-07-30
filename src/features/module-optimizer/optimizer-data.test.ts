@@ -14,7 +14,7 @@ describe("optimizer module input", () => {
   it("extracts the complete sanitized MarieRose inventory", () => {
     const source = readFileSync(
       new URL(
-        "../../../public/profiles/marierose/profile.v1.json",
+        "../../../public/profiles/3296036/profile.v1.json",
         import.meta.url,
       ),
       "utf8",

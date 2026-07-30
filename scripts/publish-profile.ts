@@ -12,7 +12,7 @@ import {
   type PublishedProfileEntry,
   type PublishedProfileIndex,
   validatePublishedProfileIndex,
-  validatePublishedProfileSlug,
+  validatePublishedProfileId,
 } from "../src/contracts/published-profiles.ts";
 import {
   type JsonValue,
@@ -21,7 +21,6 @@ import {
 
 export interface PublishProfileOptions {
   input: string;
-  slug: string;
   label?: string;
   websiteRoot?: string;
   confirmPublic?: boolean;
@@ -40,8 +39,6 @@ const defaultWebsiteRoot = fileURLToPath(new URL("../", import.meta.url));
 export async function publishProfilePackage(
   options: PublishProfileOptions,
 ): Promise<PublishProfileResult> {
-  const slugError = validatePublishedProfileSlug(options.slug);
-  if (slugError) throw new Error(`${slugError}.`);
   if (!options.confirmPublic && !options.dryRun) {
     throw new Error(
       "refusing to publish without --confirm-public; only sanitized, user-approved data belongs on the public site",
@@ -72,13 +69,21 @@ export async function publishProfilePackage(
   const encoded = Buffer.from(publishedSource, "utf8");
   const character = recordAt(envelope.body, "character");
   const displayName = stringAt(envelope.body, "display_name");
-  const characterId =
-    stringAt(character, "character_id") ?? envelope.routing["character-id"];
-  if (!characterId) throw new Error("profile is missing its public character ID.");
+  const routingCharacterId = requiredRoute(envelope.routing, "character-id");
+  const characterId = stringAt(character, "character_id") ?? routingCharacterId;
+  if (characterId !== routingCharacterId) {
+    throw new Error(
+      "body.character.character_id must match routing character-id.",
+    );
+  }
+  const profileIdError = validatePublishedProfileId(characterId);
+  if (profileIdError) {
+    throw new Error(`character UID cannot be used as a profile URL: ${profileIdError}.`);
+  }
 
   const entry: PublishedProfileEntry = {
-    slug: options.slug,
-    label: normalizedLabel(options.label ?? displayName ?? options.slug),
+    profile_id: characterId,
+    label: normalizedLabel(options.label ?? displayName ?? characterId),
     game_plugin_id: envelope.game_plugin_id,
     payload_schema_id: envelope.payload_schema_id,
     payload_schema_version: envelope.payload_schema_version,
@@ -86,7 +91,7 @@ export async function publishProfilePackage(
     region: requiredRoute(envelope.routing, "region"),
     realm: requiredRoute(envelope.routing, "realm"),
     character_id: characterId,
-    payload_path: `${options.slug}/profile.v${envelope.payload_schema_version}.json`,
+    payload_path: `${characterId}/profile.v${envelope.payload_schema_version}.json`,
     payload_sha256: createHash("sha256").update(encoded).digest("hex"),
     payload_bytes: encoded.byteLength,
   };
@@ -95,16 +100,12 @@ export async function publishProfilePackage(
   const indexPath = resolve(profilesRoot, "index.v1.json");
   const profilePath = resolve(profilesRoot, entry.payload_path);
   const index = await readIndex(indexPath);
-  const existing = index.profiles.find((candidate) => candidate.slug === entry.slug);
-  if (existing && existing.character_id !== entry.character_id) {
-    throw new Error(
-      `slug "${entry.slug}" already belongs to character ${existing.character_id}; choose a new slug`,
-    );
-  }
   index.profiles = [
-    ...index.profiles.filter((candidate) => candidate.slug !== entry.slug),
+    ...index.profiles.filter(
+      (candidate) => candidate.profile_id !== entry.profile_id,
+    ),
     entry,
-  ].sort((left, right) => left.slug.localeCompare(right.slug));
+  ].sort((left, right) => left.profile_id.localeCompare(right.profile_id));
 
   const indexValidation = validatePublishedProfileIndex(index);
   if (!indexValidation.index) {
@@ -193,6 +194,7 @@ function isMissingFile(error: unknown): boolean {
 function parseArguments(arguments_: string[]): PublishProfileOptions {
   const values = new Map<string, string>();
   const flags = new Set<string>();
+  const valueArguments = new Set(["--input", "--label"]);
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index];
     if (argument === "--confirm-public" || argument === "--dry-run") {
@@ -201,6 +203,9 @@ function parseArguments(arguments_: string[]): PublishProfileOptions {
     }
     if (!argument.startsWith("--")) {
       throw new Error(`unexpected argument "${argument}".`);
+    }
+    if (!valueArguments.has(argument)) {
+      throw new Error(`unknown argument "${argument}".`);
     }
     const value = arguments_[index + 1];
     if (!value || value.startsWith("--")) {
@@ -211,15 +216,13 @@ function parseArguments(arguments_: string[]): PublishProfileOptions {
   }
 
   const input = values.get("--input");
-  const slug = values.get("--slug");
-  if (!input || !slug) {
+  if (!input) {
     throw new Error(
-      "usage: npm run profile:publish -- --input <sanitized-envelope.json> --slug <public-slug> [--label <name>] --confirm-public",
+      "usage: npm run profile:publish -- --input <sanitized-envelope.json> [--label <name>] --confirm-public",
     );
   }
   return {
     input,
-    slug,
     label: values.get("--label"),
     confirmPublic: flags.has("--confirm-public"),
     dryRun: flags.has("--dry-run"),
@@ -229,11 +232,13 @@ function parseArguments(arguments_: string[]): PublishProfileOptions {
 async function main(): Promise<void> {
   const result = await publishProfilePackage(parseArguments(process.argv.slice(2)));
   const action = result.wroteFiles ? "Published" : "Validated";
-  console.log(`${action} ${result.entry.label} as "${result.entry.slug}".`);
+  console.log(
+    `${action} ${result.entry.label} as UID ${result.entry.profile_id}.`,
+  );
   console.log(`Payload: ${result.profilePath}`);
   console.log(`Index:   ${result.indexPath}`);
   console.log(
-    `URL:     https://donneeee.github.io/rlogs-website/?profile=${result.entry.slug}`,
+    `URL:     https://donneeee.github.io/rlogs-website/?profile=${result.entry.profile_id}`,
   );
   if (result.wroteFiles) {
     console.log("Run npm test, npm run check, and npm run build before committing.");

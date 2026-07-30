@@ -2,7 +2,7 @@ import {
   type PublishedProfileEntry,
   type PublishedProfileIndex,
   validatePublishedProfileIndex,
-  validatePublishedProfileSlug,
+  validatePublishedProfileId,
 } from "../../contracts/published-profiles";
 import {
   type WebsitePayloadEnvelope,
@@ -22,13 +22,19 @@ export function loadPublishedProfileIndex(): Promise<PublishedProfileIndex> {
   return indexRequest;
 }
 
-export async function loadPublishedProfile(slug: string): Promise<PublishedProfile> {
-  const slugError = validatePublishedProfileSlug(slug);
-  if (slugError) throw new Error(`Invalid published profile slug: ${slugError}.`);
+export async function loadPublishedProfile(
+  profileId: string,
+): Promise<PublishedProfile> {
+  const profileIdError = validatePublishedProfileId(profileId);
+  if (profileIdError) {
+    throw new Error(`Invalid published profile ID: ${profileIdError}.`);
+  }
 
   const index = await loadPublishedProfileIndex();
-  const entry = index.profiles.find((candidate) => candidate.slug === slug);
-  if (!entry) throw new Error(`Published profile "${slug}" was not found.`);
+  const entry = index.profiles.find(
+    (candidate) => candidate.profile_id === profileId,
+  );
+  if (!entry) throw new Error(`Published profile "${profileId}" was not found.`);
 
   const response = await fetch(`${publishedProfilesUrl}${entry.payload_path}`);
   if (!response.ok) {

@@ -6,7 +6,7 @@ import {
 import { loadPublishedProfile } from "./published-profile-loader";
 
 const demoFixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-character-profile.v1.json`;
-const defaultPublishedProfile = "marierose";
+const defaultPublishedProfile = "3296036";
 
 export async function mountProfileLab(): Promise<void> {
   const editor = requiredElement<HTMLTextAreaElement>("profile-json");
@@ -55,10 +55,10 @@ async function loadFixture(url: string): Promise<void> {
   }
 }
 
-async function loadPublished(slug: string): Promise<void> {
+async function loadPublished(profileId: string): Promise<void> {
   setStatus("neutral", "Loading published profile…");
   try {
-    const published = await loadPublishedProfile(slug);
+    const published = await loadPublishedProfile(profileId);
     const formatted = JSON.stringify(published.envelope, null, 2);
     requiredElement<HTMLTextAreaElement>("profile-json").value = formatted;
     validateAndRender(formatted);

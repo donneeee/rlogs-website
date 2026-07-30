@@ -18,7 +18,7 @@ import type {
 } from "./optimizer-types";
 import { loadPublishedProfile } from "../profile-lab/published-profile-loader";
 
-const defaultPublishedProfile = "marierose";
+const defaultPublishedProfile = "3296036";
 const computeBudget = optimizerComputeBudget(browserDeviceCapabilities());
 
 let inventory: ModuleCandidate[] = [];
@@ -113,10 +113,10 @@ function bindControls(): void {
   );
 }
 
-async function loadPublishedInventory(slug: string): Promise<void> {
-  setInventoryStatus(`Loading the published "${slug}" module inventory...`);
+async function loadPublishedInventory(profileId: string): Promise<void> {
+  setInventoryStatus(`Loading published UID ${profileId} module inventory...`);
   try {
-    const published = await loadPublishedProfile(slug);
+    const published = await loadPublishedProfile(profileId);
     const input = extractOptimizerInput(published.envelope);
     inventory = input.modules;
     currentInstanceIds = input.currentInstanceIds;
@@ -130,7 +130,7 @@ async function loadPublishedInventory(slug: string): Promise<void> {
     enableRun();
   } catch (error) {
     setInventoryStatus(errorMessage(error), true);
-    setRunStatus(`Could not load the "${slug}" inventory.`, true);
+    setRunStatus(`Could not load the UID ${profileId} inventory.`, true);
   }
 }
 

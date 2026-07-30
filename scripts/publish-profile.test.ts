@@ -15,31 +15,31 @@ afterEach(async () => {
 });
 
 describe("developer profile publisher", () => {
-  it("writes a validated package and updates the same slug in place", async () => {
+  it("uses the character UID and updates the same profile in place", async () => {
     const root = await temporaryRoot();
     const input = join(root, "profile.json");
-    await writeFile(input, JSON.stringify(profileEnvelope("character-1", 60)));
+    await writeFile(input, JSON.stringify(profileEnvelope("1000001", 60)));
 
     const first = await publishProfilePackage({
       input,
-      slug: "test-character",
       websiteRoot: root,
       confirmPublic: true,
     });
     expect(first.wroteFiles).toBe(true);
+    expect(first.entry.profile_id).toBe("1000001");
+    expect(first.profilePath).toContain("1000001");
 
-    await writeFile(input, JSON.stringify(profileEnvelope("character-1", 61)));
+    await writeFile(input, JSON.stringify(profileEnvelope("1000001", 61)));
     await publishProfilePackage({
       input,
-      slug: "test-character",
       websiteRoot: root,
       confirmPublic: true,
     });
 
     const index = JSON.parse(await readFile(first.indexPath, "utf8")) as {
-      profiles: Array<{ slug: string }>;
+      profiles: Array<{ profile_id: string }>;
     };
-    expect(index.profiles.map((entry) => entry.slug)).toEqual(["test-character"]);
+    expect(index.profiles.map((entry) => entry.profile_id)).toEqual(["1000001"]);
     const payload = JSON.parse(await readFile(first.profilePath, "utf8")) as {
       body: { level: number };
     };
@@ -49,13 +49,12 @@ describe("developer profile publisher", () => {
   it("normalizes published package line endings for stable GitHub Pages hashes", async () => {
     const root = await temporaryRoot();
     const input = join(root, "profile.json");
-    const source = `${JSON.stringify(profileEnvelope("character-1", 60), null, 2)}\n`
+    const source = `${JSON.stringify(profileEnvelope("1000001", 60), null, 2)}\n`
       .replace(/\n/g, "\r\n");
     await writeFile(input, source);
 
     const result = await publishProfilePackage({
       input,
-      slug: "test-character",
       websiteRoot: root,
       confirmPublic: true,
     });
@@ -68,12 +67,11 @@ describe("developer profile publisher", () => {
   it("requires explicit confirmation before writing public files", async () => {
     const root = await temporaryRoot();
     const input = join(root, "profile.json");
-    await writeFile(input, JSON.stringify(profileEnvelope("character-1", 60)));
+    await writeFile(input, JSON.stringify(profileEnvelope("1000001", 60)));
 
     await expect(
       publishProfilePackage({
         input,
-        slug: "test-character",
         websiteRoot: root,
       }),
     ).rejects.toThrow("--confirm-public");
@@ -82,18 +80,33 @@ describe("developer profile publisher", () => {
   it("rejects prohibited account data before publication", async () => {
     const root = await temporaryRoot();
     const input = join(root, "profile.json");
-    const profile = profileEnvelope("character-1", 60);
+    const profile = profileEnvelope("1000001", 60);
     profile.body.account = { id: "private" };
     await writeFile(input, JSON.stringify(profile));
 
     await expect(
       publishProfilePackage({
         input,
-        slug: "test-character",
         websiteRoot: root,
         confirmPublic: true,
       }),
     ).rejects.toThrow("prohibited account or credential field");
+  });
+
+  it("rejects mismatched body and routing character UIDs", async () => {
+    const root = await temporaryRoot();
+    const input = join(root, "profile.json");
+    const profile = profileEnvelope("1000001", 60);
+    profile.routing["character-id"] = "1000002";
+    await writeFile(input, JSON.stringify(profile));
+
+    await expect(
+      publishProfilePackage({
+        input,
+        websiteRoot: root,
+        confirmPublic: true,
+      }),
+    ).rejects.toThrow("must match routing character-id");
   });
 });
 

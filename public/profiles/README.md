@@ -4,7 +4,7 @@ This folder is the temporary, no-authentication publication path for public
 rLogs profile envelopes.
 
 - `index.v1.json` is the only discovery index.
-- Each slug owns one versioned profile payload.
+- Each public character UID owns one versioned profile payload.
 - The index records the exact byte length and SHA-256 digest.
 - The browser validates the index, digest, website envelope, prohibited-field
   policy, and routing metadata before rendering.
@@ -13,4 +13,5 @@ rLogs profile envelopes.
 
 Do not add packet captures, raw journals, credentials, account/login data,
 private chat, or unreviewed exports here. Use `npm run profile:publish` from the
-repository root so package and index validation stay synchronized.
+repository root so package and index validation stay synchronized. Folder and
+URL keys are derived from the character UID; display names are never routes.

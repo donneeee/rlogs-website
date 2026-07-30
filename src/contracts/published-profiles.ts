@@ -1,5 +1,5 @@
 export interface PublishedProfileEntry {
-  slug: string;
+  profile_id: string;
   label: string;
   game_plugin_id: string;
   payload_schema_id: string;
@@ -26,15 +26,17 @@ export interface PublishedProfileIndexValidation {
 
 const PROFILE_INDEX_SCHEMA_VERSION = 1;
 const MAX_PROFILE_PAYLOAD_BYTES = 8 * 1024 * 1024;
-const slugPattern = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+const profileIdPattern = /^[A-Za-z0-9_-]{1,128}$/;
 const digestPattern = /^[a-f0-9]{64}$/;
 const payloadPathPattern =
-  /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\/profile\.v[1-9][0-9]*\.json$/;
+  /^[A-Za-z0-9_-]{1,128}\/profile\.v[1-9][0-9]*\.json$/;
 
-export function validatePublishedProfileSlug(slug: string): string | undefined {
-  return slugPattern.test(slug)
+export function validatePublishedProfileId(
+  profileId: string,
+): string | undefined {
+  return profileIdPattern.test(profileId)
     ? undefined
-    : "profile slug must contain 1-64 lowercase letters, numbers, or single hyphens";
+    : "profile ID must contain 1-128 URL-safe letters, numbers, underscores, or hyphens";
 }
 
 export function validatePublishedProfileIndex(
@@ -56,7 +58,7 @@ export function validatePublishedProfileIndex(
     return { errors };
   }
 
-  const slugs = new Set<string>();
+  const profileIds = new Set<string>();
   const paths = new Set<string>();
   value.profiles.forEach((candidate, index) => {
     const path = `profiles[${index}]`;
@@ -65,12 +67,14 @@ export function validatePublishedProfileIndex(
       return;
     }
 
-    const slug =
-      typeof candidate.slug === "string" ? candidate.slug : "";
-    const slugError = validatePublishedProfileSlug(slug);
-    if (slugError) errors.push(`${path}.slug ${slugError}.`);
-    if (slugs.has(slug)) errors.push(`${path}.slug duplicates "${slug}".`);
-    slugs.add(slug);
+    const profileId =
+      typeof candidate.profile_id === "string" ? candidate.profile_id : "";
+    const profileIdError = validatePublishedProfileId(profileId);
+    if (profileIdError) errors.push(`${path}.profile_id ${profileIdError}.`);
+    if (profileIds.has(profileId)) {
+      errors.push(`${path}.profile_id duplicates "${profileId}".`);
+    }
+    profileIds.add(profileId);
 
     validateText(errors, candidate.label, `${path}.label`, 1, 80);
     validateText(errors, candidate.game_plugin_id, `${path}.game_plugin_id`, 3, 192);
@@ -96,9 +100,12 @@ export function validatePublishedProfileIndex(
       typeof candidate.payload_path === "string"
         ? candidate.payload_path
         : "";
-    if (!payloadPathPattern.test(payloadPath) || !payloadPath.startsWith(`${slug}/`)) {
+    if (
+      !payloadPathPattern.test(payloadPath) ||
+      !payloadPath.startsWith(`${profileId}/`)
+    ) {
       errors.push(
-        `${path}.payload_path must be a versioned JSON file inside the slug folder.`,
+        `${path}.payload_path must be a versioned JSON file inside the profile ID folder.`,
       );
     }
     if (paths.has(payloadPath)) {

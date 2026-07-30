@@ -69,7 +69,7 @@ authorization boundary. Publish an already-sanitized, user-approved profile
 envelope with:
 
 ```powershell
-npm run profile:publish -- --input C:\path\profile.json --slug marierose --confirm-public
+npm run profile:publish -- --input C:\path\profile.json --confirm-public
 npm test
 npm run check
 npm run build
@@ -85,7 +85,9 @@ profile allowlist. A normal push deploys the package through GitHub Pages; do
 not force-push.
 
 Each package is available at
-`https://donneeee.github.io/rlogs-website/?profile=<slug>`. The browser
+`https://donneeee.github.io/rlogs-website/?profile=<character-uid>`. The
+publisher derives this key from the envelope; character names are never used
+as routes because they are not unique. The browser
 validates the index, byte length, digest, envelope, and manifest routing before
 rendering it. These packages are visibly developer-published test data, not
 authenticated character claims.
