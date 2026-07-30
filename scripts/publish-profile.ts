@@ -15,7 +15,12 @@ import {
   validatePublishedProfileId,
 } from "../src/contracts/published-profiles.ts";
 import {
+  type LocalProfilePackage,
+  validateLocalProfilePackage,
+} from "../src/contracts/local-profile-package.ts";
+import {
   type JsonValue,
+  type WebsitePayloadEnvelope,
   validateWebsitePayload,
 } from "../src/contracts/website-payload.ts";
 
@@ -56,16 +61,14 @@ export async function publishProfilePackage(
     throw new Error(`input is not valid JSON: ${message}`);
   }
 
-  const validation = validateWebsitePayload(value);
-  if (!validation.envelope) {
-    throw new Error(`profile envelope failed validation: ${validation.errors.join(" ")}`);
-  }
-  const envelope = validation.envelope;
+  const { envelope, profilePackage } = await validateProfileInput(value);
   if (envelope.payload_kind !== "character-profile") {
     throw new Error('payload_kind must be "character-profile".');
   }
 
-  const publishedSource = source.replace(/\r\n?/g, "\n");
+  // Local packages retain sealed-log provenance on the developer machine. The
+  // public site receives only the already-reviewed website envelope.
+  const publishedSource = `${JSON.stringify(envelope, null, 2)}\n`;
   const encoded = Buffer.from(publishedSource, "utf8");
   const character = recordAt(envelope.body, "character");
   const displayName = stringAt(envelope.body, "display_name");
@@ -89,11 +92,20 @@ export async function publishProfilePackage(
     payload_schema_version: envelope.payload_schema_version,
     deployment: requiredRoute(envelope.routing, "deployment"),
     region: requiredRoute(envelope.routing, "region"),
-    realm: requiredRoute(envelope.routing, "realm"),
+    realm: envelope.routing.realm,
+    world: envelope.routing.world,
     character_id: characterId,
     payload_path: `${characterId}/profile.v${envelope.payload_schema_version}.json`,
     payload_sha256: createHash("sha256").update(encoded).digest("hex"),
     payload_bytes: encoded.byteLength,
+    ...(profilePackage
+      ? {
+          source_package_id: profilePackage.package_id,
+          source_created_unix_millis: profilePackage.created_unix_millis,
+          source_observation_count: profilePackage.source.observation_count,
+          source_client_build: profilePackage.source.client_build,
+        }
+      : {}),
   };
 
   const profilesRoot = resolve(websiteRoot, "public", "profiles");
@@ -117,6 +129,32 @@ export async function publishProfilePackage(
     await atomicWrite(indexPath, `${JSON.stringify(index, null, 2)}\n`);
   }
   return { entry, profilePath, indexPath, wroteFiles: !options.dryRun };
+}
+
+async function validateProfileInput(value: unknown): Promise<{
+  envelope: WebsitePayloadEnvelope;
+  profilePackage?: LocalProfilePackage;
+}> {
+  if (isRecord(value) && ("request" in value || "package_id" in value)) {
+    const validation = await validateLocalProfilePackage(value);
+    if (!validation.package) {
+      throw new Error(
+        `local profile package failed validation: ${validation.errors.join(" ")}`,
+      );
+    }
+    return {
+      envelope: validation.package.request.payload,
+      profilePackage: validation.package,
+    };
+  }
+
+  const validation = validateWebsitePayload(value);
+  if (!validation.envelope) {
+    throw new Error(
+      `profile envelope failed validation: ${validation.errors.join(" ")}`,
+    );
+  }
+  return { envelope: validation.envelope };
 }
 
 async function readIndex(path: string): Promise<PublishedProfileIndex> {
@@ -189,6 +227,10 @@ function isMissingFile(error: unknown): boolean {
     "code" in error &&
     error.code === "ENOENT"
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parseArguments(arguments_: string[]): PublishProfileOptions {

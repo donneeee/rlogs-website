@@ -6,11 +6,16 @@ export interface PublishedProfileEntry {
   payload_schema_version: number;
   deployment: string;
   region: string;
-  realm: string;
+  realm?: string;
+  world?: string;
   character_id: string;
   payload_path: string;
   payload_sha256: string;
   payload_bytes: number;
+  source_package_id?: string;
+  source_created_unix_millis?: number;
+  source_observation_count?: number;
+  source_client_build?: string;
 }
 
 export interface PublishedProfileIndex {
@@ -93,7 +98,8 @@ export function validatePublishedProfileIndex(
     }
     validateText(errors, candidate.deployment, `${path}.deployment`, 1, 96);
     validateText(errors, candidate.region, `${path}.region`, 1, 96);
-    validateText(errors, candidate.realm, `${path}.realm`, 1, 96);
+    validateOptionalText(errors, candidate.realm, `${path}.realm`, 1, 96);
+    validateOptionalText(errors, candidate.world, `${path}.world`, 1, 96);
     validateText(errors, candidate.character_id, `${path}.character_id`, 1, 256);
 
     const payloadPath =
@@ -128,6 +134,45 @@ export function validatePublishedProfileIndex(
         `${path}.payload_bytes must be between 1 and ${MAX_PROFILE_PAYLOAD_BYTES}.`,
       );
     }
+
+    const sourceFields = [
+      candidate.source_package_id,
+      candidate.source_created_unix_millis,
+      candidate.source_observation_count,
+      candidate.source_client_build,
+    ];
+    const sourceFieldCount = sourceFields.filter(
+      (value) => value !== undefined,
+    ).length;
+    if (sourceFieldCount !== 0 && sourceFieldCount !== sourceFields.length) {
+      errors.push(
+        `${path} local-package provenance fields must either all be present or all be absent.`,
+      );
+    } else if (sourceFieldCount === sourceFields.length) {
+      if (
+        typeof candidate.source_package_id !== "string" ||
+        !digestPattern.test(candidate.source_package_id)
+      ) {
+        errors.push(`${path}.source_package_id must be a lowercase SHA-256 digest.`);
+      }
+      validatePositiveSafeInteger(
+        errors,
+        candidate.source_created_unix_millis,
+        `${path}.source_created_unix_millis`,
+      );
+      validatePositiveSafeInteger(
+        errors,
+        candidate.source_observation_count,
+        `${path}.source_observation_count`,
+      );
+      validateText(
+        errors,
+        candidate.source_client_build,
+        `${path}.source_client_build`,
+        1,
+        256,
+      );
+    }
   });
 
   if (errors.length > 0) return { errors };
@@ -135,6 +180,32 @@ export function validatePublishedProfileIndex(
     index: value as unknown as PublishedProfileIndex,
     errors,
   };
+}
+
+function validateOptionalText(
+  errors: string[],
+  value: unknown,
+  path: string,
+  minimum: number,
+  maximum: number,
+): void {
+  if (value !== undefined) {
+    validateText(errors, value, path, minimum, maximum);
+  }
+}
+
+function validatePositiveSafeInteger(
+  errors: string[],
+  value: unknown,
+  path: string,
+): void {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value <= 0
+  ) {
+    errors.push(`${path} must be a positive safe integer.`);
+  }
 }
 
 function validateText(

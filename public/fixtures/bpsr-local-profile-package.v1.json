@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "package_id": "181b363d0cf5db0b2d2a4562373e6bb378fbac4b2baeb33637991a1a07737874",
+  "created_unix_millis": 1789000000000,
+  "source": {
+    "session_id": "synthetic-profile-session",
+    "client_build": "synthetic-build",
+    "protocol_pack_digest": "sha256:synthetic-demo-pack",
+    "canonical_content_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "observation_count": 2,
+    "last_event_sequence": 9
+  },
+  "request": {
+    "relative_endpoint": "/v1/games/blue-protocol-star-resonance/profiles",
+    "payload": {
+      "schema_version": 1,
+      "game_plugin_id": "app.rlogs.game.blue-protocol-star-resonance",
+      "payload_kind": "character-profile",
+      "payload_schema_id": "app.rlogs.bpsr.character-profile",
+      "payload_schema_version": 1,
+      "routing": {
+        "character-id": "1000001",
+        "deployment": "global",
+        "realm": "asteria",
+        "region": "north-america"
+      },
+      "body": {
+        "character": {
+          "character_id": "1000001",
+          "region": {
+            "deployment_id": "global",
+            "region_id": "north-america",
+            "realm_id": "asteria",
+            "world_id": null
+          }
+        },
+        "display_name": "Example Adventurer",
+        "class_id": 2,
+        "specialization_id": 1,
+        "level": 60,
+        "combat_power": 24500,
+        "equipment": [],
+        "modules": {
+          "equipped_slots": {},
+          "inventory": []
+        },
+        "owned_imagines": [],
+        "active_skills": [],
+        "talents": [],
+        "collection_summary": {}
+      }
+    }
+  }
+}

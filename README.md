@@ -7,6 +7,8 @@ plug-ins, and future backend can evolve independently.
 The first release is intentionally a static site:
 
 - it validates the version-1 `WebsitePayloadEnvelope` emitted by rLogs;
+- it verifies the sealed `LocalProfilePackage` written by the desktop and
+  extracts only its public website envelope;
 - it imports and renders sanitized Blue Protocol: Star Resonance character
   profiles;
 - it discovers hashed, developer-published profile packages without requiring
@@ -38,7 +40,7 @@ public/
   fixtures/                    sanitized payloads and test receipts
   profiles/                    indexed developer-published profile packages
 src/
-  contracts/                   versioned parser-to-website boundaries
+  contracts/                   versioned package and parser-to-website boundaries
   features/
     module-optimizer/          optimizer web adapter and status
     profile-lab/               profile import, validation, and rendering
@@ -65,8 +67,8 @@ moving away from GitHub Pages will not require rewriting page features.
 ## Developer profile publishing
 
 Until the authenticated API exists, repository write access is the developer
-authorization boundary. Publish an already-sanitized, user-approved profile
-envelope with:
+authorization boundary. Publish an already-sanitized, user-approved
+`current.profile.json` created by rLogs with:
 
 ```powershell
 npm run profile:publish -- --input C:\path\profile.json --confirm-public
@@ -78,11 +80,17 @@ git commit -m "data: publish updated marierose profile"
 git push
 ```
 
-The publisher reruns the prohibited-field and size checks, creates a
-deterministic SHA-256 manifest entry, and refuses to write without
-`--confirm-public`. It does not read packet captures or bypass the public
-profile allowlist. A normal push deploys the package through GitHub Pages; do
-not force-push.
+The publisher verifies the native package seal, sealed-log evidence shape,
+prohibited-field boundary, routing, and size limits. It then discards local
+source/session details and writes only the public profile envelope plus minimal
+non-secret verification metadata. It refuses to write without
+`--confirm-public`, does not read packet captures, and does not bypass the
+public profile allowlist. A normal push deploys the result through GitHub
+Pages; do not force-push.
+
+For backwards-compatible testing, the command also accepts a bare sanitized
+`WebsitePayloadEnvelope`. The native package is preferred because its request
+digest can be verified before publication.
 
 Each package is available at
 `https://donneeee.github.io/rlogs-website/?profile=<character-uid>`. The
@@ -93,6 +101,9 @@ rendering it. These packages are visibly developer-published test data, not
 authenticated character claims.
 
 Use `--dry-run` instead of `--confirm-public` to validate without writing.
+
+The Profile Lab and module optimizer can also open `current.profile.json`
+directly. That browser-only import never uploads or persists the file.
 
 ## Optimizer path
 

@@ -16,6 +16,7 @@ import type {
   OptimizeResponse,
   SearchMode,
 } from "./optimizer-types";
+import { validateLocalProfilePackage } from "../../contracts/local-profile-package";
 import { loadPublishedProfile } from "../profile-lab/published-profile-loader";
 
 const defaultPublishedProfile = "3296036";
@@ -154,9 +155,11 @@ async function loadInventoryFile(event: Event): Promise<void> {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    const input = extractOptimizerInput(JSON.parse(await file.text()));
-    inventory = input.modules;
-    currentInstanceIds = input.currentInstanceIds;
+    const parsed: unknown = JSON.parse(await file.text());
+    const optimizerSource = await unwrapLocalProfilePackage(parsed);
+    const optimizerInput = extractOptimizerInput(optimizerSource);
+    inventory = optimizerInput.modules;
+    currentInstanceIds = optimizerInput.currentInstanceIds;
     setCombinationSizeForCurrentSetup();
     updateExactSearchAvailability();
     setInventoryStatus(
@@ -171,6 +174,24 @@ async function loadInventoryFile(event: Event): Promise<void> {
   } finally {
     input.value = "";
   }
+}
+
+async function unwrapLocalProfilePackage(value: unknown): Promise<unknown> {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    (!("package_id" in value) && !("request" in value))
+  ) {
+    return value;
+  }
+  const validation = await validateLocalProfilePackage(value);
+  if (!validation.package) {
+    throw new Error(
+      `Local profile package failed validation: ${validation.errors.join(" ")}`,
+    );
+  }
+  return validation.package.request.payload;
 }
 
 async function runOptimizer(): Promise<void> {

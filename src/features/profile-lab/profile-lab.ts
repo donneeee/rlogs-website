@@ -3,9 +3,14 @@ import {
   type WebsitePayloadEnvelope,
   validateWebsitePayload,
 } from "../../contracts/website-payload";
+import {
+  type LocalProfilePackage,
+  validateLocalProfilePackage,
+} from "../../contracts/local-profile-package";
+import type { PublishedProfileEntry } from "../../contracts/published-profiles";
 import { loadPublishedProfile } from "./published-profile-loader";
 
-const demoFixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-character-profile.v1.json`;
+const demoFixtureUrl = `${import.meta.env.BASE_URL}fixtures/bpsr-local-profile-package.v1.json`;
 const defaultPublishedProfile = "3296036";
 
 export async function mountProfileLab(): Promise<void> {
@@ -13,7 +18,7 @@ export async function mountProfileLab(): Promise<void> {
   const fileInput = requiredElement<HTMLInputElement>("profile-file");
 
   requiredElement("validate-profile").addEventListener("click", () => {
-    validateAndRender(editor.value);
+    void validateAndRender(editor.value);
   });
   requiredElement("load-profile-fixture").addEventListener("click", () => {
     void loadFixture(demoFixtureUrl);
@@ -26,7 +31,7 @@ export async function mountProfileLab(): Promise<void> {
     if (!file) return;
     void file.text().then((text) => {
       editor.value = text;
-      validateAndRender(text);
+      void validateAndRender(text);
     });
   });
 
@@ -48,7 +53,7 @@ async function loadFixture(url: string): Promise<void> {
     const value: unknown = await response.json();
     const formatted = JSON.stringify(value, null, 2);
     requiredElement<HTMLTextAreaElement>("profile-json").value = formatted;
-    validateAndRender(formatted);
+    await validateAndRender(formatted);
   } catch (error) {
     showErrors([error instanceof Error ? error.message : "Could not load fixture."]);
     setStatus("invalid", "Fixture failed");
@@ -61,8 +66,8 @@ async function loadPublished(profileId: string): Promise<void> {
     const published = await loadPublishedProfile(profileId);
     const formatted = JSON.stringify(published.envelope, null, 2);
     requiredElement<HTMLTextAreaElement>("profile-json").value = formatted;
-    validateAndRender(formatted);
-    setStatus("valid", "Developer-published package");
+    await validateAndRender(formatted, { publishedEntry: published.entry });
+    setPublishedProfileLocation(profileId);
   } catch (error) {
     showErrors([
       error instanceof Error ? error.message : "Could not load published profile.",
@@ -72,7 +77,10 @@ async function loadPublished(profileId: string): Promise<void> {
   }
 }
 
-function validateAndRender(source: string): void {
+async function validateAndRender(
+  source: string,
+  context: ProfileRenderContext = {},
+): Promise<void> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(source);
@@ -84,6 +92,25 @@ function validateAndRender(source: string): void {
     return;
   }
 
+  if (isLocalPackageCandidate(parsed)) {
+    const result = await validateLocalProfilePackage(parsed);
+    showErrors(result.errors);
+    if (!result.package) {
+      clearPreview();
+      setStatus(
+        "invalid",
+        `${result.errors.length} package issue${result.errors.length === 1 ? "" : "s"}`,
+      );
+      return;
+    }
+    renderProfile(result.package.request.payload, {
+      ...context,
+      localPackage: result.package,
+    });
+    setStatus("valid", "Verified local profile package");
+    return;
+  }
+
   const result = validateWebsitePayload(parsed);
   showErrors(result.errors);
   if (!result.envelope) {
@@ -92,11 +119,21 @@ function validateAndRender(source: string): void {
     return;
   }
 
-  renderProfile(result.envelope);
-  setStatus("valid", "Valid public envelope");
+  renderProfile(result.envelope, context);
+  setStatus(
+    "valid",
+    context.publishedEntry
+      ? context.publishedEntry.source_package_id
+        ? "Published from verified package"
+        : "Developer-published envelope"
+      : "Valid public envelope",
+  );
 }
 
-function renderProfile(envelope: WebsitePayloadEnvelope): void {
+function renderProfile(
+  envelope: WebsitePayloadEnvelope,
+  context: ProfileRenderContext,
+): void {
   const preview = requiredElement("profile-preview");
   preview.replaceChildren();
 
@@ -153,17 +190,80 @@ function renderProfile(envelope: WebsitePayloadEnvelope): void {
     ["Skill and talent state", presenceLabel(body.active_skills ?? body.talents)],
     ["Collection state", presenceLabel(body.collection_summary)],
   ];
+  const packageId =
+    context.localPackage?.package_id ??
+    context.publishedEntry?.source_package_id;
+  if (packageId) {
+    domains.push(["Verified package seal", `${packageId.slice(0, 16)}...`]);
+  }
+  const observationCount =
+    context.localPackage?.source.observation_count ??
+    context.publishedEntry?.source_observation_count;
+  if (observationCount) {
+    domains.push([
+      "Profile observations",
+      observationCount.toLocaleString(),
+    ]);
+  }
+  const clientBuild =
+    context.localPackage?.source.client_build ??
+    context.publishedEntry?.source_client_build;
+  if (clientBuild) domains.push(["Observed client build", clientBuild]);
   for (const [label, value] of domains) {
     domainList.append(element("dt", "", label), element("dd", "", value));
   }
 
+  const profileLink = context.publishedEntry
+    ? publishedProfileLink(context.publishedEntry.profile_id)
+    : undefined;
   const details = element("details", "raw-inspector");
   details.append(
     element("summary", "", "Inspect normalized public envelope"),
     element("pre", "", JSON.stringify(envelope, null, 2)),
   );
 
-  preview.append(identity, metrics, domainList, details);
+  preview.append(identity, metrics, domainList);
+  if (profileLink) preview.append(profileLink);
+  preview.append(details);
+}
+
+interface ProfileRenderContext {
+  localPackage?: LocalProfilePackage;
+  publishedEntry?: PublishedProfileEntry;
+}
+
+function isLocalPackageCandidate(
+  value: unknown,
+): value is Record<string, unknown> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    ("package_id" in value || "request" in value)
+  );
+}
+
+function publishedProfileLink(profileId: string): HTMLAnchorElement {
+  const link = element(
+    "a",
+    "profile-link",
+    `Permanent UID profile URL: ${profileId}`,
+  );
+  link.href = publishedProfileUrl(profileId).toString();
+  return link;
+}
+
+function setPublishedProfileLocation(profileId: string): void {
+  const url = publishedProfileUrl(profileId);
+  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function publishedProfileUrl(profileId: string): URL {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("profile", profileId);
+  url.hash = "profile-lab";
+  return url;
 }
 
 function showErrors(errors: string[]): void {

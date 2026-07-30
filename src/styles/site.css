@@ -538,6 +538,20 @@ h3 {
   font-size: 11px;
 }
 
+.profile-link {
+  display: block;
+  padding: 14px 18px;
+  color: var(--accent);
+  border-top: 1px solid var(--line);
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.profile-link:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
 .profile-domain-list dt {
   color: var(--muted);
 }

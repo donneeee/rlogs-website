@@ -84,7 +84,9 @@ function verifyManifestMatchesEnvelope(
   entry: PublishedProfileEntry,
   envelope: WebsitePayloadEnvelope,
 ): void {
-  const pairs: Array<[string, string | number | undefined, string | number]> = [
+  const pairs: Array<
+    [string, string | number | undefined, string | number | undefined]
+  > = [
     ["game plug-in", envelope.game_plugin_id, entry.game_plugin_id],
     ["payload schema", envelope.payload_schema_id, entry.payload_schema_id],
     [
@@ -95,6 +97,7 @@ function verifyManifestMatchesEnvelope(
     ["deployment", envelope.routing.deployment, entry.deployment],
     ["region", envelope.routing.region, entry.region],
     ["realm", envelope.routing.realm, entry.realm],
+    ["world", envelope.routing.world, entry.world],
     ["character ID", envelope.routing["character-id"], entry.character_id],
   ];
   const mismatch = pairs.find(([, actual, expected]) => actual !== expected);

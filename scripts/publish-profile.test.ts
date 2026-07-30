@@ -4,6 +4,14 @@ import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+  type LocalProfilePackage,
+  requestDigest,
+} from "../src/contracts/local-profile-package";
+import {
+  type JsonValue,
+  type WebsitePayloadEnvelope,
+} from "../src/contracts/website-payload";
 import { publishProfilePackage } from "./publish-profile";
 
 const temporaryRoots: string[] = [];
@@ -64,6 +72,44 @@ describe("developer profile publisher", () => {
     expect(result.entry.payload_bytes).toBe(Buffer.byteLength(published));
   });
 
+  it("verifies a native local package and publishes only its public envelope", async () => {
+    const root = await temporaryRoot();
+    const input = join(root, "current.profile.json");
+    const profilePackage = await localProfilePackage("1000001", 60);
+    await writeFile(input, JSON.stringify(profilePackage, null, 2));
+
+    const result = await publishProfilePackage({
+      input,
+      websiteRoot: root,
+      confirmPublic: true,
+    });
+    const published = JSON.parse(await readFile(result.profilePath, "utf8")) as {
+      request?: unknown;
+      body: { level: number };
+    };
+
+    expect(published.request).toBeUndefined();
+    expect(published.body.level).toBe(60);
+    expect(result.entry.source_package_id).toBe(profilePackage.package_id);
+    expect(result.entry.source_observation_count).toBe(2);
+  });
+
+  it("rejects a tampered native local package before publication", async () => {
+    const root = await temporaryRoot();
+    const input = join(root, "current.profile.json");
+    const profilePackage = await localProfilePackage("1000001", 60);
+    profilePackage.request.payload.body.level = 61;
+    await writeFile(input, JSON.stringify(profilePackage));
+
+    await expect(
+      publishProfilePackage({
+        input,
+        websiteRoot: root,
+        confirmPublic: true,
+      }),
+    ).rejects.toThrow("package_id does not match");
+  });
+
   it("requires explicit confirmation before writing public files", async () => {
     const root = await temporaryRoot();
     const input = join(root, "profile.json");
@@ -116,8 +162,11 @@ async function temporaryRoot(): Promise<string> {
   return root;
 }
 
-function profileEnvelope(characterId: string, level: number) {
-  const body: Record<string, unknown> = {
+function profileEnvelope(
+  characterId: string,
+  level: number,
+): WebsitePayloadEnvelope {
+  const body: Record<string, JsonValue> = {
     character: { character_id: characterId },
     display_name: "Test Character",
     level,
@@ -135,5 +184,29 @@ function profileEnvelope(characterId: string, level: number) {
       "character-id": characterId,
     },
     body,
+  };
+}
+
+async function localProfilePackage(
+  characterId: string,
+  level: number,
+): Promise<LocalProfilePackage> {
+  const request = {
+    relative_endpoint: "/v1/games/blue-protocol-star-resonance/profiles",
+    payload: profileEnvelope(characterId, level),
+  };
+  return {
+    schema_version: 1,
+    package_id: await requestDigest(request),
+    created_unix_millis: 1_789_000_000_000,
+    source: {
+      session_id: "session-1",
+      client_build: "build-1",
+      protocol_pack_digest: "sha256:pack-1",
+      canonical_content_sha256: `sha256:${"a".repeat(64)}`,
+      observation_count: 2,
+      last_event_sequence: 9,
+    },
+    request,
   };
 }
