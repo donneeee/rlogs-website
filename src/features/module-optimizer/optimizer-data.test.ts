@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { extractOptimizerModules, safeDemoModules } from "./optimizer-data";
+import {
+  extractOptimizerInput,
+  extractOptimizerModules,
+  safeDemoModules,
+} from "./optimizer-data";
 
 describe("optimizer module input", () => {
   it("extracts the complete sanitized MarieRose inventory", () => {
@@ -12,9 +16,17 @@ describe("optimizer module input", () => {
       ),
       "utf8",
     );
-    const modules = extractOptimizerModules(JSON.parse(source));
+    const input = extractOptimizerInput(JSON.parse(source));
+    const { modules } = input;
 
     expect(modules).toHaveLength(649);
+    expect(input.currentInstanceIds).toEqual([
+      "14874",
+      "14949",
+      "11803",
+      "15805",
+      "10106",
+    ]);
     expect(Object.keys(modules[0]).sort()).toEqual([
       "config_id",
       "instance_id",
@@ -45,5 +57,23 @@ describe("optimizer module input", () => {
         },
       ]),
     ).toThrow("string instance_id");
+  });
+
+  it("rejects an equipped module that is missing from the inventory", () => {
+    expect(() =>
+      extractOptimizerInput({
+        inventory: [
+          {
+            instance_id: "present",
+            config_id: 5_500_101,
+            parts: [
+              { part_id: 1110, initial_link_points: 4 },
+              { part_id: 1111, initial_link_points: 4 },
+            ],
+          },
+        ],
+        equipped_slots: { 1: "missing" },
+      }),
+    ).toThrow("not present");
   });
 });

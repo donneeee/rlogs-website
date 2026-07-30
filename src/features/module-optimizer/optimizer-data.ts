@@ -2,20 +2,42 @@ import type { ModuleCandidate } from "./optimizer-types";
 
 const MAX_MODULES = 4_096;
 
+export interface OptimizerProfileInput {
+  modules: ModuleCandidate[];
+  currentInstanceIds: string[];
+}
+
 export function extractOptimizerModules(value: unknown): ModuleCandidate[] {
-  const inventory = findInventory(value);
-  if (!inventory) {
+  return extractOptimizerInput(value).modules;
+}
+
+export function extractOptimizerInput(value: unknown): OptimizerProfileInput {
+  const input = findInput(value);
+  if (!input) {
     throw new Error(
       "JSON must be an inventory array, a modules object, or a profile envelope containing body.modules.inventory.",
     );
   }
-  if (inventory.length === 0) {
+  if (input.inventory.length === 0) {
     throw new Error("The module inventory is empty.");
   }
-  if (inventory.length > MAX_MODULES) {
+  if (input.inventory.length > MAX_MODULES) {
     throw new Error(`The module inventory exceeds the ${MAX_MODULES} item limit.`);
   }
-  return inventory.map((entry, index) => normalizeModule(entry, index));
+  const modules = input.inventory.map((entry, index) =>
+    normalizeModule(entry, index),
+  );
+  const currentInstanceIds = normalizeEquippedSlots(input.equippedSlots);
+  const inventoryIds = new Set(modules.map((module) => module.instance_id));
+  const missingCurrent = currentInstanceIds.find(
+    (instanceId) => !inventoryIds.has(instanceId),
+  );
+  if (missingCurrent) {
+    throw new Error(
+      `Equipped module ${missingCurrent} is not present in the module inventory.`,
+    );
+  }
+  return { modules, currentInstanceIds };
 }
 
 export function safeDemoModules(): ModuleCandidate[] {
@@ -44,22 +66,61 @@ export function safeDemoModules(): ModuleCandidate[] {
   }));
 }
 
-function findInventory(value: unknown): unknown[] | undefined {
-  if (Array.isArray(value)) return value;
+function findInput(
+  value: unknown,
+):
+  | { inventory: unknown[]; equippedSlots?: unknown }
+  | undefined {
+  if (Array.isArray(value)) return { inventory: value };
   if (!isRecord(value)) return undefined;
-  if (Array.isArray(value.inventory)) return value.inventory;
-  if (Array.isArray(value.modules)) return value.modules;
+  if (Array.isArray(value.inventory)) {
+    return {
+      inventory: value.inventory,
+      equippedSlots: value.equipped_slots,
+    };
+  }
+  if (Array.isArray(value.modules)) return { inventory: value.modules };
   if (isRecord(value.modules) && Array.isArray(value.modules.inventory)) {
-    return value.modules.inventory;
+    return {
+      inventory: value.modules.inventory,
+      equippedSlots: value.modules.equipped_slots,
+    };
   }
   if (
     isRecord(value.body) &&
     isRecord(value.body.modules) &&
     Array.isArray(value.body.modules.inventory)
   ) {
-    return value.body.modules.inventory;
+    return {
+      inventory: value.body.modules.inventory,
+      equippedSlots: value.body.modules.equipped_slots,
+    };
   }
   return undefined;
+}
+
+function normalizeEquippedSlots(value: unknown): string[] {
+  if (value == null) return [];
+  if (!isRecord(value)) {
+    throw new Error("equipped_slots must be an object keyed by module slot.");
+  }
+  return Object.entries(value)
+    .sort(([left], [right]) => numericSlot(left) - numericSlot(right))
+    .map(([slot, instanceId]) => {
+      numericSlot(slot);
+      if (typeof instanceId !== "string" || instanceId.trim() === "") {
+        throw new Error(`Equipped module slot ${slot} must contain a string instance ID.`);
+      }
+      return instanceId;
+    });
+}
+
+function numericSlot(value: string): number {
+  const slot = Number(value);
+  if (!Number.isSafeInteger(slot) || slot < 0) {
+    throw new Error(`Equipped module slot ${value} must be a non-negative integer.`);
+  }
+  return slot;
 }
 
 function normalizeModule(value: unknown, index: number): ModuleCandidate {

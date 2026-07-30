@@ -1,10 +1,11 @@
 import {
-  extractOptimizerModules,
+  extractOptimizerInput,
   safeDemoModules,
 } from "./optimizer-data";
 import type {
   AttributeCatalogEntry,
   ModuleCandidate,
+  ModuleSolution,
   OptimizerCatalog,
   OptimizerWorkerRequest,
   OptimizerWorkerResponse,
@@ -17,6 +18,7 @@ const captureFixtureUrl =
   `${import.meta.env.BASE_URL}fixtures/marierose-asteria-capture.v1.json`;
 
 let inventory: ModuleCandidate[] = [];
+let currentInstanceIds: string[] = [];
 let catalog: OptimizerCatalog | undefined;
 let nextWorkerRequestId = 1;
 const pendingWorkerCalls = new Map<
@@ -97,9 +99,13 @@ async function loadCaptureInventory(): Promise<void> {
     if (!response.ok) {
       throw new Error(`Profile fixture failed with HTTP ${response.status}.`);
     }
-    inventory = extractOptimizerModules(await response.json());
+    const input = extractOptimizerInput(await response.json());
+    inventory = input.modules;
+    currentInstanceIds = input.currentInstanceIds;
+    setCombinationSizeForCurrentSetup();
     setInventoryStatus(
-      `MarieRose capture loaded: ${formatNumber(inventory.length)} modules.`,
+      `MarieRose capture loaded: ${formatNumber(inventory.length)} modules and ` +
+        `${currentInstanceIds.length} equipped modules.`,
     );
     setRunStatus("Choose attribute priorities, then optimize.");
     enableRun();
@@ -111,6 +117,8 @@ async function loadCaptureInventory(): Promise<void> {
 
 function loadDemoInventory(): void {
   inventory = safeDemoModules();
+  currentInstanceIds = inventory.slice(0, 4).map((module) => module.instance_id);
+  setCombinationSizeForCurrentSetup();
   const strength = document.querySelector<HTMLSelectElement>(
     '.optimizer-attribute-row[data-attribute-id="1110"] select',
   );
@@ -126,9 +134,13 @@ async function loadInventoryFile(event: Event): Promise<void> {
   const file = input.files?.[0];
   if (!file) return;
   try {
-    inventory = extractOptimizerModules(JSON.parse(await file.text()));
+    const input = extractOptimizerInput(JSON.parse(await file.text()));
+    inventory = input.modules;
+    currentInstanceIds = input.currentInstanceIds;
+    setCombinationSizeForCurrentSetup();
     setInventoryStatus(
-      `${file.name}: ${formatNumber(inventory.length)} modules loaded locally.`,
+      `${file.name}: ${formatNumber(inventory.length)} modules and ` +
+        `${currentInstanceIds.length} equipped modules loaded locally.`,
     );
     setRunStatus("Choose attribute priorities, then optimize.");
     enableRun();
@@ -196,6 +208,7 @@ function buildRequest(): OptimizeRequest {
     requiredElement<HTMLInputElement>("optimizer-min-total").value;
   return {
     modules: inventory,
+    current_instance_ids: currentInstanceIds,
     target_attributes: targetAttributes,
     exclude_attributes: excludeAttributes,
     min_attr_requirements: minimums,
@@ -242,8 +255,8 @@ function attributeRow(attribute: AttributeCatalogEntry): HTMLElement {
   mode.setAttribute("aria-label", `Scoring policy for ${attribute.name}`);
   for (const [value, label] of [
     ["normal", "Normal"],
-    ["target", "Target 2x"],
-    ["exclude", "Exclude"],
+    ["target", "Priority"],
+    ["exclude", "Ignore"],
   ]) {
     const option = element("option", "", label);
     option.value = value;
@@ -260,12 +273,18 @@ function attributeRow(attribute: AttributeCatalogEntry): HTMLElement {
 }
 
 function renderResult(result: OptimizeResponse, durationMs: number): void {
+  const current = result.current_setup;
+  const top = result.solutions[0];
+  const currentIsComparable =
+    current?.instance_ids.length === result.search.combination_size;
+  const actualDelta =
+    currentIsComparable && current && top ? top.score - current.score : undefined;
   const metrics: Array<[string, string]> = [
-    [String(result.solutions.length), "solutions"],
+    [current ? formatNumber(current.score) : "—", "current actual"],
+    [top ? formatNumber(top.score) : "—", "best found actual"],
+    [actualDelta == null ? "—" : formatSigned(actualDelta), "actual change"],
+    [top ? formatNumber(top.ranking_score) : "—", "preference score"],
     [formatNumber(result.search.candidate_module_count), "candidates"],
-    [formatNumber(result.search.total_combinations), "possible sets"],
-    [formatNumber(result.search.evaluated_states), "states evaluated"],
-    [result.search.exact ? "exact" : "bounded", "result type"],
     [`${durationMs.toFixed(0)} ms`, "browser time"],
   ];
   requiredElement("optimizer-metrics").replaceChildren(
@@ -276,51 +295,82 @@ function renderResult(result: OptimizeResponse, durationMs: number): void {
     }),
   );
 
-  requiredElement("optimizer-result-rows").replaceChildren(
-    ...result.solutions.map((solution, index) => {
-      const row = element("tr");
-      const modules = element("td", "optimizer-module-ids");
-      for (const module of solution.modules) {
-        const line = element("span");
-        line.append(
-          element("strong", "", module.instance_id),
-          element(
-            "small",
-            "",
-            `config ${module.config_id}${module.quality == null ? "" : ` / Q${module.quality}`}`,
-          ),
-        );
-        modules.append(line);
-      }
-      const attributes = solution.breakdown.attributes
-        .filter((attribute) => attribute.total > 0)
-        .map((attribute) => {
-          const entry = catalog?.attributes.find(
-            (candidate) => candidate.id === attribute.attribute_id,
-          );
-          const suffix =
-            attribute.multiplier === 2
-              ? " x2"
-              : attribute.multiplier === 0
-                ? " excluded"
-                : "";
-          return `${entry?.name ?? attribute.attribute_id}: ${attribute.total}${suffix}`;
-        })
-        .join(" / ");
-      row.append(
-        element("td", "", `#${index + 1}`),
-        element("td", "optimizer-score", formatNumber(solution.score)),
-        modules,
-        element("td", "optimizer-attribute-summary", attributes),
-      );
-      return row;
-    }),
+  const currentSignature = current ? solutionSignature(current) : undefined;
+  const recommendations = result.solutions.filter(
+    (solution) => solutionSignature(solution) !== currentSignature,
   );
+  const rows = recommendations.map((solution, index) =>
+    solutionRow(solution, `#${index + 1}`),
+  );
+  if (current) rows.unshift(solutionRow(current, "Current", true));
+  requiredElement("optimizer-result-rows").replaceChildren(...rows);
 
   requiredElement("optimizer-footnote").textContent =
-    `${result.scoring_revision}. Threshold power ${result.solutions[0]?.breakdown.threshold_power ?? 0}; ` +
-    `total-link power ${result.solutions[0]?.breakdown.total_link_power ?? 0}.`;
+    `Actual power is always unweighted. Preference score is used only to order recommendations. ` +
+    `${result.solutions.length} solutions; ${formatNumber(result.search.total_combinations)} possible sets; ` +
+    `${formatNumber(result.search.evaluated_states)} states evaluated with ` +
+    `${result.search.exact ? "exact" : "bounded"} search. ${result.scoring_revision}.`;
   requiredElement("optimizer-result").hidden = false;
+}
+
+function solutionSignature(solution: ModuleSolution): string {
+  return [...solution.instance_ids].sort().join("\u0000");
+}
+
+function solutionRow(
+  solution: ModuleSolution,
+  label: string,
+  current = false,
+): HTMLTableRowElement {
+  const row = element("tr");
+  if (current) row.classList.add("optimizer-current-row");
+  const modules = element("td", "optimizer-module-ids");
+  for (const module of solution.modules) {
+    const line = element("span");
+    line.append(
+      element("strong", "", module.instance_id),
+      element(
+        "small",
+        "",
+        `config ${module.config_id}${module.quality == null ? "" : ` / Q${module.quality}`}`,
+      ),
+    );
+    modules.append(line);
+  }
+  const attributes = solution.breakdown.attributes
+    .filter((attribute) => attribute.total > 0)
+    .map((attribute) => {
+      const entry = catalog?.attributes.find(
+        (candidate) => candidate.id === attribute.attribute_id,
+      );
+      const suffix =
+        attribute.multiplier === 2
+          ? " (priority)"
+          : attribute.multiplier === 0
+            ? " (ignored for ranking)"
+            : "";
+      return `${entry?.name ?? attribute.attribute_id}: ${attribute.total}${suffix}`;
+    })
+    .join(" / ");
+  row.append(
+    element("td", current ? "optimizer-current-label" : "", label),
+    element("td", "optimizer-score", formatNumber(solution.score)),
+    element(
+      "td",
+      "optimizer-ranking-score",
+      formatNumber(solution.ranking_score),
+    ),
+    modules,
+    element("td", "optimizer-attribute-summary", attributes),
+  );
+  return row;
+}
+
+function setCombinationSizeForCurrentSetup(): void {
+  if (currentInstanceIds.length === 4 || currentInstanceIds.length === 5) {
+    requiredElement<HTMLSelectElement>("optimizer-combination-size").value =
+      String(currentInstanceIds.length);
+  }
 }
 
 function callWorker(
@@ -380,6 +430,10 @@ function element<K extends keyof HTMLElementTagNameMap>(
 
 function formatNumber(value: number): string {
   return value.toLocaleString();
+}
+
+function formatSigned(value: number): string {
+  return `${value >= 0 ? "+" : ""}${formatNumber(value)}`;
 }
 
 function errorMessage(error: unknown): string {

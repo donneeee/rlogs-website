@@ -222,7 +222,7 @@
 
               <label class="optimizer-check">
                 <input id="optimizer-require-target" type="checkbox" />
-                Only consider modules containing a target attribute
+                Only consider modules containing a priority attribute
               </label>
 
               <div class="optimizer-run-bar">
@@ -247,7 +247,7 @@
               <div class="optimizer-attribute-heading">
                 <div>
                   <strong>Attribute policy</strong>
-                  <small>Target doubles threshold power; exclude removes it.</small>
+                  <small>Preferences affect ranking only; actual power remains unweighted.</small>
                 </div>
                 <span id="optimizer-catalog-revision" class="optimizer-revision">
                   Loading catalog...
@@ -270,8 +270,9 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Rank</th>
-                    <th>Score</th>
+                    <th>Set</th>
+                    <th>Actual power</th>
+                    <th>Preference score</th>
                     <th>Module instance IDs</th>
                     <th>Attribute totals</th>
                   </tr>

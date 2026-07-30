@@ -13,6 +13,7 @@ export interface ModuleCandidate {
 export interface AttributeCatalogEntry {
   id: number;
   name: string;
+  official_name: string | null;
   icon: string | null;
   thresholds: number[];
   fight_values: number[];
@@ -32,6 +33,7 @@ export type SearchMode = "auto" | "exact" | "beam";
 
 export interface OptimizeRequest {
   modules: ModuleCandidate[];
+  current_instance_ids: string[];
   target_attributes: number[];
   exclude_attributes: number[];
   min_attr_requirements: Record<string, number>;
@@ -54,9 +56,13 @@ export interface AttributeScore {
 export interface ModuleSolution {
   instance_ids: string[];
   modules: ModuleCandidate[];
+  /** Actual in-game module power without optimizer preference weighting. */
   score: number;
+  /** Preference-weighted value used only to order recommendations. */
+  ranking_score: number;
   breakdown: {
     threshold_power: number;
+    ranking_threshold_power: number;
     total_link_points: number;
     total_link_power: number;
     attributes: AttributeScore[];
@@ -66,6 +72,7 @@ export interface ModuleSolution {
 export interface OptimizeResponse {
   scoring_revision: string;
   catalog_revision: string;
+  current_setup: ModuleSolution | null;
   solutions: ModuleSolution[];
   search: {
     requested_mode: SearchMode;
