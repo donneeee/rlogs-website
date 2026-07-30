@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
+  combinationCount,
+  DEFAULT_EXACT_COMBINATION_LIMIT,
   extractOptimizerInput,
   extractOptimizerModules,
   safeDemoModules,
@@ -42,6 +44,14 @@ describe("optimizer module input", () => {
     expect(modules).toHaveLength(12);
     expect(modules[0].instance_id).toBe("9007199254740993");
     expect(typeof modules[0].instance_id).toBe("string");
+  });
+
+  it("counts exact combinations without JavaScript precision loss", () => {
+    expect(combinationCount(648, 5)).toBe(937_510_500_024n);
+    expect(combinationCount(12, 4)).toBe(495n);
+    expect(combinationCount(12, 4)).toBeLessThan(
+      DEFAULT_EXACT_COMBINATION_LIMIT,
+    );
   });
 
   it("rejects numeric instance IDs instead of accepting precision loss", () => {

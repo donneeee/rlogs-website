@@ -684,6 +684,16 @@ h3 {
   border-color: var(--accent);
 }
 
+.optimizer-search-help {
+  min-height: 2.6em;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.45;
+  text-transform: none;
+}
+
 .optimizer-check {
   display: flex;
   gap: 9px;

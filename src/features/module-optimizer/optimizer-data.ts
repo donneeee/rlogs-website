@@ -1,6 +1,7 @@
 import type { ModuleCandidate } from "./optimizer-types";
 
 const MAX_MODULES = 4_096;
+export const DEFAULT_EXACT_COMBINATION_LIMIT = 500_000n;
 
 export interface OptimizerProfileInput {
   modules: ModuleCandidate[];
@@ -64,6 +65,25 @@ export function safeDemoModules(): ModuleCandidate[] {
       initial_link_points: 3 + ((index + partIndex * 3) % 8),
     })),
   }));
+}
+
+export function combinationCount(itemCount: number, selectionSize: number): bigint {
+  if (
+    !Number.isSafeInteger(itemCount) ||
+    !Number.isSafeInteger(selectionSize) ||
+    itemCount < 0 ||
+    selectionSize < 0 ||
+    selectionSize > itemCount
+  ) {
+    return 0n;
+  }
+  const smallerSide = Math.min(selectionSize, itemCount - selectionSize);
+  let result = 1n;
+  for (let index = 1; index <= smallerSide; index += 1) {
+    result =
+      (result * BigInt(itemCount - smallerSide + index)) / BigInt(index);
+  }
+  return result;
 }
 
 function findInput(

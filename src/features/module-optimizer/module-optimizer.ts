@@ -1,4 +1,6 @@
 import {
+  combinationCount,
+  DEFAULT_EXACT_COMBINATION_LIMIT,
   extractOptimizerInput,
   safeDemoModules,
 } from "./optimizer-data";
@@ -90,6 +92,22 @@ function bindControls(): void {
     "click",
     () => void runOptimizer(),
   );
+  requiredElement<HTMLSelectElement>("optimizer-combination-size").addEventListener(
+    "change",
+    updateExactSearchAvailability,
+  );
+  requiredElement<HTMLInputElement>("optimizer-min-total").addEventListener(
+    "input",
+    updateExactSearchAvailability,
+  );
+  requiredElement<HTMLInputElement>("optimizer-require-target").addEventListener(
+    "change",
+    updateExactSearchAvailability,
+  );
+  requiredElement("optimizer-attributes").addEventListener(
+    "change",
+    updateExactSearchAvailability,
+  );
 }
 
 async function loadCaptureInventory(): Promise<void> {
@@ -103,6 +121,7 @@ async function loadCaptureInventory(): Promise<void> {
     inventory = input.modules;
     currentInstanceIds = input.currentInstanceIds;
     setCombinationSizeForCurrentSetup();
+    updateExactSearchAvailability();
     setInventoryStatus(
       `MarieRose capture loaded: ${formatNumber(inventory.length)} modules and ` +
         `${currentInstanceIds.length} equipped modules.`,
@@ -124,6 +143,7 @@ function loadDemoInventory(): void {
   );
   if (strength) strength.value = "target";
   requiredElement<HTMLInputElement>("optimizer-require-target").checked = false;
+  updateExactSearchAvailability();
   setInventoryStatus("Safe demo loaded: 12 generated modules.");
   setRunStatus("Choose attribute priorities, then optimize.");
   enableRun();
@@ -138,6 +158,7 @@ async function loadInventoryFile(event: Event): Promise<void> {
     inventory = input.modules;
     currentInstanceIds = input.currentInstanceIds;
     setCombinationSizeForCurrentSetup();
+    updateExactSearchAvailability();
     setInventoryStatus(
       `${file.name}: ${formatNumber(inventory.length)} modules and ` +
         `${currentInstanceIds.length} equipped modules loaded locally.`,
@@ -163,12 +184,25 @@ async function runOptimizer(): Promise<void> {
   }
 
   const button = requiredElement<HTMLButtonElement>("run-optimizer");
+  const searchMode =
+    requiredElement<HTMLSelectElement>("optimizer-search-mode");
+  const exactEstimate = estimateExactSearch();
+  const fellBackFromExact =
+    searchMode.value === "exact" &&
+    exactEstimate.combinations > DEFAULT_EXACT_COMBINATION_LIMIT;
+  if (fellBackFromExact) {
+    searchMode.value = "auto";
+    updateExactSearchAvailability();
+  }
   button.disabled = true;
   button.textContent = "Optimizing...";
   requiredElement("optimizer-result").hidden = true;
   const request = buildRequest();
   setRunStatus(
-    `Searching ${formatNumber(inventory.length)} modules in the background...`,
+    fellBackFromExact
+      ? `Exact search would require ${formatBigInt(exactEstimate.combinations)} sets; ` +
+          "using bounded search automatically."
+      : `Searching ${formatNumber(inventory.length)} modules in the background...`,
   );
   const started = performance.now();
   try {
@@ -235,6 +269,7 @@ function renderCatalog(value: OptimizerCatalog): void {
   root.replaceChildren(
     ...value.attributes.map((attribute) => attributeRow(attribute)),
   );
+  updateExactSearchAvailability();
 }
 
 function attributeRow(attribute: AttributeCatalogEntry): HTMLElement {
@@ -373,6 +408,70 @@ function setCombinationSizeForCurrentSetup(): void {
   }
 }
 
+function updateExactSearchAvailability(): void {
+  const searchMode =
+    requiredElement<HTMLSelectElement>("optimizer-search-mode");
+  const exactOption = searchMode.querySelector<HTMLOptionElement>(
+    'option[value="exact"]',
+  );
+  if (!exactOption) return;
+  const estimate = estimateExactSearch();
+  const tooLarge =
+    estimate.combinations > DEFAULT_EXACT_COMBINATION_LIMIT;
+  exactOption.disabled = tooLarge;
+  exactOption.textContent = tooLarge
+    ? "Exact verification (too many sets)"
+    : "Exact verification";
+  if (tooLarge && searchMode.value === "exact") {
+    searchMode.value = "auto";
+  }
+  const help = requiredElement("optimizer-search-help");
+  help.textContent =
+    inventory.length === 0
+      ? "Exact verification is available for small inventories."
+      : tooLarge
+        ? `Exact disabled: ${formatNumber(estimate.candidateCount)} eligible modules can produce ` +
+          `up to ${formatBigInt(estimate.combinations)} sets. Auto uses bounded search.`
+        : `Exact available for ${formatBigInt(estimate.combinations)} possible sets.`;
+}
+
+function estimateExactSearch(): {
+  candidateCount: number;
+  combinations: bigint;
+} {
+  const combinationSize = Number(
+    requiredElement<HTMLSelectElement>("optimizer-combination-size").value,
+  );
+  const minimumTotalRaw =
+    requiredElement<HTMLInputElement>("optimizer-min-total").value;
+  const minimumTotal =
+    minimumTotalRaw === "" ? undefined : Number(minimumTotalRaw);
+  const priorityAttributes = new Set(
+    [...document.querySelectorAll<HTMLElement>(".optimizer-attribute-row")]
+      .filter((row) => row.querySelector<HTMLSelectElement>("select")?.value === "target")
+      .map((row) => Number(row.dataset.attributeId)),
+  );
+  const requirePriority =
+    requiredElement<HTMLInputElement>("optimizer-require-target").checked &&
+    priorityAttributes.size > 0;
+  const candidateCount = inventory.filter((module) => {
+    if (module.parts.length < 2) return false;
+    const total = module.parts.reduce(
+      (sum, part) => sum + part.initial_link_points,
+      0,
+    );
+    if (minimumTotal != null && total < minimumTotal) return false;
+    return (
+      !requirePriority ||
+      module.parts.some((part) => priorityAttributes.has(part.part_id))
+    );
+  }).length;
+  return {
+    candidateCount,
+    combinations: combinationCount(candidateCount, combinationSize),
+  };
+}
+
 function callWorker(
   message:
     | { kind: "catalog" }
@@ -430,6 +529,10 @@ function element<K extends keyof HTMLElementTagNameMap>(
 
 function formatNumber(value: number): string {
   return value.toLocaleString();
+}
+
+function formatBigInt(value: bigint): string {
+  return value.toLocaleString("en-US");
 }
 
 function formatSigned(value: number): string {
